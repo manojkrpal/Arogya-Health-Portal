@@ -10,8 +10,8 @@ import {
   CheckCircle2,
   Snowflake,
   RefreshCw,
-  Languages,
 } from 'lucide-react';
+import { GeminiAdvisoryModal } from './GeminiAdvisoryModal.js';
 
 interface AlertsViewProps {
   alerts: AlertItem[];
@@ -26,19 +26,23 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
   isLoading,
   onProposeTransfer,
 }) => {
-  const { user, token, lang, setLang } = useAuth();
+  const { user, token } = useAuth();
   const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExplaining, setIsExplaining] = useState(false);
+  const [advisoryError, setAdvisoryError] = useState<string | null>(null);
   const [explanationData, setExplanationData] = useState<{
     plan: GeminiTransferPlan;
     proposedLines: ProposedTransferLine[];
     modelNotice: string;
   } | null>(null);
 
-  // Trigger Gemini structured explanation & deterministic optimization
+  // Trigger Gemini structured explanation & deterministic optimization in expandable modal
   const handleExplainAlert = async (alert: AlertItem) => {
     setSelectedAlert(alert);
+    setIsModalOpen(true);
     setIsExplaining(true);
+    setAdvisoryError(null);
     setExplanationData(null);
 
     try {
@@ -55,16 +59,19 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setExplanationData({
-          plan: data.geminiPlan,
-          proposedLines: data.proposedLines,
-          modelNotice: data.modelNotice,
-        });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error?.message || 'Failed to fetch Gemini Advisory');
       }
-    } catch (err) {
+
+      setExplanationData({
+        plan: data.geminiPlan,
+        proposedLines: data.proposedLines,
+        modelNotice: data.modelNotice,
+      });
+    } catch (err: any) {
       console.error('Failed to explain alert:', err);
+      setAdvisoryError(err?.message || 'Failed to load Gemini Advisory commentary. Please try again.');
     } finally {
       setIsExplaining(false);
     }
@@ -201,121 +208,21 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
         </div>
       )}
 
-      {/* Gemini Structured Explanation Modal / Card */}
-      {(isExplaining || explanationData) && selectedAlert && (
-        <div className="p-4 rounded-2xl bg-slate-800/95 border border-teal-500/40 shadow-2xl space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-700">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-teal-400" />
-              <h3 className="text-xs font-bold text-slate-100 uppercase tracking-wider">
-                Gemini Clinical & Logistics Commentary (Advisory Only)
-              </h3>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
-                className="px-2 py-0.5 rounded bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1"
-              >
-                <Languages className="w-3 h-3 text-teal-400" />
-                {lang === 'en' ? 'हिंदी में पढ़ें' : 'Read in English'}
-              </button>
-              <button
-                onClick={() => {
-                  setExplanationData(null);
-                  setSelectedAlert(null);
-                }}
-                className="text-slate-400 hover:text-white text-xs"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
-          {isExplaining ? (
-            <div className="py-6 text-center space-y-2">
-              <RefreshCw className="w-6 h-6 text-teal-400 animate-spin mx-auto" />
-              <p className="text-xs text-slate-300">
-                Running deterministic optimizer & querying Gemini 3.8 Flash...
-              </p>
-            </div>
-          ) : explanationData ? (
-            <div className="space-y-3">
-              {/* English or Hindi advisory text */}
-              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-700/80 text-xs leading-relaxed text-slate-200">
-                {lang === 'hi'
-                  ? explanationData.plan.explanation_hi
-                  : explanationData.plan.explanation_en}
-              </div>
-
-              <div className="flex items-center justify-between text-[11px] text-slate-400">
-                <span>
-                  Confidence:{' '}
-                  <strong className="text-teal-300">
-                    {Math.round(explanationData.plan.confidence * 100)}%
-                  </strong>
-                </span>
-                <span className="font-mono text-[10px] text-slate-500">
-                  {explanationData.modelNotice} &bull; Zod Validated
-                </span>
-              </div>
-
-              {/* Proposed Allocation Lines */}
-              {explanationData.proposedLines.length > 0 ? (
-                <div className="space-y-1.5">
-                  <div className="text-[11px] font-semibold text-slate-300">
-                    Deterministic Optimizer Routing (Donor Cover Verified):
-                  </div>
-                  {explanationData.proposedLines.map((line, idx) => (
-                    <div
-                      key={idx}
-                      className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-700 text-xs flex items-center justify-between"
-                    >
-                      <div>
-                        <span className="text-teal-300 font-semibold">
-                          {line.fromFacilityName}
-                        </span>
-                        <span className="text-slate-400 mx-1.5">&rarr;</span>
-                        <span className="text-slate-200 font-semibold">
-                          {line.toFacilityName}
-                        </span>
-                        <div className="text-[10px] text-slate-400 mt-0.5">
-                          {line.distanceKm} km &bull; ~{line.etaHours}h road transit
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-sm font-bold text-emerald-400">
-                          +{line.qty} {line.skuCode}
-                        </span>
-                        <div className="text-[10px] text-slate-400">
-                          Donor keeps {line.donorRemainingQty} (req &ge; {line.donorRequiredCover})
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {user?.role !== 'phc_nurse' && (
-                    <button
-                      onClick={() => {
-                        onProposeTransfer(selectedAlert.facilityId, selectedAlert.skuId);
-                        setExplanationData(null);
-                        setSelectedAlert(null);
-                      }}
-                      className="w-full mt-2 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow"
-                    >
-                      Confirm and Propose This Transfer
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
-                  No single donor facility in this district can spare stock without violating the 7-day donor cover rule. Escalation to National War Room recommended.
-                </div>
-              )}
-            </div>
-          ) : null}
-        </div>
-      )}
+      {/* Gemini Structured Explanation Modal (Expandable to full size) */}
+      <GeminiAdvisoryModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedAlert(null);
+        }}
+        alert={selectedAlert}
+        isLoading={isExplaining}
+        error={advisoryError}
+        explanationData={explanationData}
+        onRetry={() => selectedAlert && handleExplainAlert(selectedAlert)}
+        onConfirmTransfer={onProposeTransfer}
+        canProposeTransfer={user?.role !== 'phc_nurse'}
+      />
     </div>
   );
 };

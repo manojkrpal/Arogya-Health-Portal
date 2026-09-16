@@ -712,7 +712,7 @@ apiRouter.post('/ai/explain-alert', requireRole('district_officer', 'national_wa
     const proposedLines = await optimizeTransfersForShortage(targetFacilityId, targetSkuId);
 
     // Call Gemini for structured explanation (EN + HI)
-    const { plan: geminiPlan, isStub } = await explainTransferPlanWithGemini({
+    const { plan: geminiPlan, isStub, modelUsed } = await explainTransferPlanWithGemini({
       alertMessage: alertRow?.message || 'High stockout risk identified',
       recipientFacilityName: alertRow?.facility_name || 'Destination Clinic',
       skuName: alertRow?.sku_name || 'Essential Medicine',
@@ -728,7 +728,7 @@ apiRouter.post('/ai/explain-alert', requireRole('district_officer', 'national_wa
       proposedLines,
       geminiPlan,
       isStub,
-      modelNotice: isStub ? 'model: stub' : 'gemini-3.8-flash',
+      modelNotice: isStub ? (modelUsed || 'model: stub') : (modelUsed || 'gemini-2.5-flash'),
     });
   } catch (err: any) {
     sendError(res, 500, 'EXPLANATION_ERROR', err.message, req);

@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.js';
-import { TransferOrder, FacilitySnapshot, SkuItem } from '../types/client.js';
+import {
+  TransferOrder,
+  FacilitySnapshot,
+  SkuItem,
+  AlertItem,
+  GeminiTransferPlan,
+  ProposedTransferLine,
+} from '../types/client.js';
 import {
   ArrowLeftRight,
   CheckCircle2,
@@ -12,7 +19,9 @@ import {
   Plus,
   Truck,
   MapPin,
+  Sparkles,
 } from 'lucide-react';
+import { GeminiAdvisoryModal } from './GeminiAdvisoryModal.js';
 
 interface TransfersViewProps {
   transfers: TransferOrder[];
@@ -34,6 +43,17 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Gemini Advisory Modal state
+  const [isAdvisoryOpen, setIsAdvisoryOpen] = useState(false);
+  const [isExplaining, setIsExplaining] = useState(false);
+  const [advisoryError, setAdvisoryError] = useState<string | null>(null);
+  const [advisoryAlert, setAdvisoryAlert] = useState<AlertItem | null>(null);
+  const [explanationData, setExplanationData] = useState<{
+    plan: GeminiTransferPlan;
+    proposedLines: ProposedTransferLine[];
+    modelNotice: string;
+  } | null>(null);
+
   // Transfer Proposal modal state
   const [showModal, setShowModal] = useState(false);
   const [recipientFacilityId, setRecipientFacilityId] = useState(facilities[0]?.id || '');
@@ -42,6 +62,64 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
 
   const canApprove =
     user?.role === 'district_officer' || user?.role === 'national_war_room';
+
+  const handleExplainOrder = async (order: TransferOrder) => {
+    setIsAdvisoryOpen(true);
+    setIsExplaining(true);
+    setAdvisoryError(null);
+    setExplanationData(null);
+
+    const syntheticAlert: AlertItem = {
+      id: order.id,
+      facilityId: order.toFacilityId,
+      facilityName: order.toFacilityName,
+      district: 'Jurisdiction',
+      skuId: order.skuId,
+      skuCode: order.skuCode,
+      skuName: order.skuName,
+      coldChain: order.coldChain,
+      severity: 'warn',
+      ruleCode: 'PROPOSED_TRANSFER',
+      message: `Inter-facility stock transfer proposed: ${order.qty} ${order.unit} from ${order.fromFacilityName} to ${order.toFacilityName}`,
+      open: true,
+      currentQty: 0,
+      demand7d: order.donorDemand7d,
+      stockoutProb7d: 0.85,
+      outbreakMultiplier: 1.0,
+      modelNotice: 'Gemini Advisory',
+      createdAt: order.createdAt,
+    };
+    setAdvisoryAlert(syntheticAlert);
+
+    try {
+      const res = await fetch('/v1/ai/explain-alert', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          facilityId: order.toFacilityId,
+          skuId: order.skuId,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error?.message || 'Failed to fetch Gemini Advisory');
+      }
+
+      setExplanationData({
+        plan: data.geminiPlan,
+        proposedLines: data.proposedLines,
+        modelNotice: data.modelNotice,
+      });
+    } catch (err: any) {
+      setAdvisoryError(err?.message || 'Failed to generate advisory');
+    } finally {
+      setIsExplaining(false);
+    }
+  };
 
   // Handle Approve (calls atomic transaction) or Reject
   const handleDecide = async (orderId: string, action: 'approve' | 'reject') => {
@@ -259,31 +337,59 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
                   </span>
                 </div>
 
-                {/* Human-in-the-Loop Action Buttons */}
-                {isProposed && canApprove && (
-                  <div className="mt-3 pt-3 border-t border-slate-700/60 flex items-center justify-end gap-2">
-                    <button
-                      disabled={isSubmitting}
-                      onClick={() => handleDecide(order.id, 'reject')}
-                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
-                    >
-                      Reject
-                    </button>
-                    <button
-                      disabled={isSubmitting}
-                      onClick={() => handleDecide(order.id, 'approve')}
-                      className="px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow shadow-teal-500/20"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      Approve & Execute Stock Transfer
-                    </button>
-                  </div>
-                )}
+                {/* Action Controls & Gemini Advisory */}
+                <div className="mt-3 pt-3 border-t border-slate-700/60 flex items-center justify-between gap-2 flex-wrap">
+                  <button
+                    onClick={() => handleExplainOrder(order)}
+                    className="px-2.5 py-1.5 rounded-lg bg-teal-500/15 hover:bg-teal-500/25 border border-teal-500/30 text-teal-300 text-xs font-semibold flex items-center gap-1.5 transition"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+                    Gemini Advisory (EN/HI)
+                  </button>
+
+                  {isProposed && canApprove && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        disabled={isSubmitting}
+                        onClick={() => handleDecide(order.id, 'reject')}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
+                      >
+                        Reject
+                      </button>
+                      <button
+                        disabled={isSubmitting}
+                        onClick={() => handleDecide(order.id, 'approve')}
+                        className="px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow shadow-teal-500/20"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Approve & Execute Stock Transfer
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
       )}
+
+      {/* Gemini Advisory Modal (Expandable to Full Screen) */}
+      <GeminiAdvisoryModal
+        isOpen={isAdvisoryOpen}
+        onClose={() => {
+          setIsAdvisoryOpen(false);
+          setAdvisoryAlert(null);
+        }}
+        alert={advisoryAlert}
+        isLoading={isExplaining}
+        error={advisoryError}
+        explanationData={explanationData}
+        onRetry={() => {
+          const currentOrder = transfers.find((t) => t.id === advisoryAlert?.id);
+          if (currentOrder) handleExplainOrder(currentOrder);
+        }}
+        canProposeTransfer={false}
+      />
 
       {/* Propose Transfer Modal */}
       {showModal && (

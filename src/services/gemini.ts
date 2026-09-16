@@ -33,7 +33,7 @@ export interface GenerateExplanationOptions {
 
 export async function explainTransferPlanWithGemini(
   options: GenerateExplanationOptions
-): Promise<{ plan: TransferPlan; isStub: boolean }> {
+): Promise<{ plan: TransferPlan; isStub: boolean; modelUsed: string }> {
   const apiKey = process.env.GEMINI_API_KEY;
 
   // If no Gemini API key configured, use a deterministic labeled fallback stub
@@ -41,6 +41,7 @@ export async function explainTransferPlanWithGemini(
     return {
       plan: generateStubExplanation(options),
       isStub: true,
+      modelUsed: 'stub:no_key',
     };
   }
 
@@ -85,60 +86,76 @@ Respond with STRICT JSON adhering to this schema:
 }
 `;
 
-  // Try calling Gemini with 1 retry on parsing/validation failure (fail-closed)
+  // Candidate models: gemini-2.5-flash is ultra-fast and currently responsive, with gemini-3.5-flash-lite and gemini-3.8-flash as resilient alternatives
+  const candidateModels = ['gemini-2.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+
   let lastError: any = null;
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              explanation_en: { type: Type.STRING },
-              explanation_hi: { type: Type.STRING },
-              confidence: { type: Type.NUMBER },
-              lines: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    fromFacilityId: { type: Type.STRING },
-                    toFacilityId: { type: Type.STRING },
-                    skuCode: { type: Type.STRING },
-                    qty: { type: Type.INTEGER },
-                    reason: { type: Type.STRING },
+  for (const modelName of candidateModels) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                explanation_en: { type: Type.STRING },
+                explanation_hi: { type: Type.STRING },
+                confidence: { type: Type.NUMBER },
+                lines: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      fromFacilityId: { type: Type.STRING },
+                      toFacilityId: { type: Type.STRING },
+                      skuCode: { type: Type.STRING },
+                      qty: { type: Type.INTEGER },
+                      reason: { type: Type.STRING },
+                    },
+                    required: ['fromFacilityId', 'toFacilityId', 'skuCode', 'qty', 'reason'],
                   },
-                  required: ['fromFacilityId', 'toFacilityId', 'skuCode', 'qty', 'reason'],
                 },
               },
+              required: ['explanation_en', 'explanation_hi', 'confidence', 'lines'],
             },
-            required: ['explanation_en', 'explanation_hi', 'confidence', 'lines'],
           },
-        },
-      });
+        });
 
-      const rawText = response.text || '';
-      const parsedJson = JSON.parse(rawText);
-      const validatedPlan = TransferPlanSchema.parse(parsedJson);
+        const rawText = response.text || '';
+        const parsedJson = JSON.parse(rawText);
+        const validatedPlan = TransferPlanSchema.parse(parsedJson);
 
-      return {
-        plan: validatedPlan,
-        isStub: false,
-      };
-    } catch (err) {
-      lastError = err;
-      console.warn(`[Gemini] Attempt ${attempt} failed:`, err);
+        return {
+          plan: validatedPlan,
+          isStub: false,
+          modelUsed: modelName,
+        };
+      } catch (err: any) {
+        lastError = err;
+        const is503 = String(err?.message || '').includes('503') || String(err?.message || '').includes('high demand');
+        if (is503) {
+          console.log(`[Gemini] ${modelName} experiencing temporary upstream demand (503); trying next candidate...`);
+          // Skip second attempt on 503 for the same model and try the next model immediately
+          break;
+        } else {
+          console.warn(`[Gemini] Model ${modelName} Attempt ${attempt} failed:`, err?.message || err);
+          if (attempt === 1) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        }
+      }
     }
   }
 
-  // Non-negotiable #5: If it fails a second time, fail closed or return labeled error/fallback
-  console.error('[Gemini] Model failed twice to produce validated schema. Falling back to labeled stub.');
+  // Graceful fallback to labeled deterministic stub
+  console.warn('[Gemini] All models encountered transient load issues. Falling back to labeled deterministic stub.', lastError?.message || '');
   return {
     plan: generateStubExplanation(options),
     isStub: true,
+    modelUsed: 'stub:fallback',
   };
 }
 
