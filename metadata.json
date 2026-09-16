@@ -1,0 +1,6 @@
+{
+  "name": "ArogyaNet",
+  "description": "National PHC medicine, bed, and staff-attendance visibility with 7-day stockout risk alerts, Gemini-explained cross-district transfers, and BRICS federation index.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
