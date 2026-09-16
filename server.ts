@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import { initDb, getDbEngine } from './src/db/db.js';
@@ -8,24 +7,13 @@ import { apiRouter } from './src/routes/api.js';
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   app.use(express.json());
 
-  // Initialize Database (Schema & Seeds)
-  try {
-    await initDb();
-    console.log(`[ArogyaNet] Database online (${getDbEngine()}).`);
-  } catch (err) {
-    console.error('[ArogyaNet] Database initialization failure:', err);
-  }
-
-  // Health check endpoint
+  // Health check endpoint (serves immediately for Cloud Run container probes)
   app.get('/api/health', (req, res) => {
     res.json({
       status: 'ok',
@@ -50,16 +38,26 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    const distPath = path.resolve(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
+  // Bind server to port 3000 immediately so container health probes pass instantly
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[ArogyaNet] Server running on http://0.0.0.0:${PORT}`);
   });
+
+  // Initialize Database in background without blocking port listening
+  initDb()
+    .then(() => {
+      console.log(`[ArogyaNet] Database online (${getDbEngine()}).`);
+    })
+    .catch((err) => {
+      console.error('[ArogyaNet] Database initialization failure:', err);
+    });
 }
 
 startServer();
