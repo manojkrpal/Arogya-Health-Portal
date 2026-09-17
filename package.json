@@ -7,7 +7,10 @@
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
-    "test": "tsx tests/money_path.test.ts",
+    "test": "tsx tests/money_path.test.ts && tsx tests/stage1_rbac_deny.test.ts && tsx tests/stage2_supply_chain.test.ts",
+    "test:rbac": "tsx tests/stage1_rbac_deny.test.ts",
+    "test:stage2": "tsx tests/stage2_supply_chain.test.ts",
+    "seed:firestore": "tsx src/db/seedFirestore.ts",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },

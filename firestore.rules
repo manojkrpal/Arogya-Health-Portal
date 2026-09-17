@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    // Default deny for unspecified paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Sovereign Tenant Boundaries
+    match /tenants/{tenantId} {
+      allow read, write: if isValidId(tenantId);
+
+      match /facilities/{facilityId} {
+        allow read, write: if isValidId(facilityId);
+      }
+
+      match /skus/{skuId} {
+        allow read, write: if isValidId(skuId);
+      }
+
+      match /inventory/{facilityId}/stock/{skuId} {
+        allow read, write: if isValidId(facilityId) && isValidId(skuId);
+      }
+
+      // Stock movements: immutable ledger (no update, no delete)
+      match /inventory/{facilityId}/stock_movements/{movementId} {
+        allow read, create: if isValidId(facilityId) && isValidId(movementId);
+        allow update, delete: if false;
+      }
+
+      match /alerts/{alertId} {
+        allow read, write: if isValidId(alertId);
+      }
+
+      // Inter-facility transfers: no deletion allowed
+      match /transfers/{transferId} {
+        allow read, create, update: if isValidId(transferId);
+        allow delete: if false;
+      }
+
+      // Audit events: strictly immutable write-once compliance records
+      match /audit_events/{eventId} {
+        allow read, create: if isValidId(eventId);
+        allow update, delete: if false;
+      }
+
+      match /forecasts/{skuId}/by_facility/{facilityId} {
+        allow read, write: if isValidId(skuId) && isValidId(facilityId);
+      }
+
+      match /users/{userId} {
+        allow read, write: if isValidId(userId);
+      }
+
+      match /export_jobs/{jobId} {
+        allow read, create, update: if isValidId(jobId);
+        allow delete: if false;
+      }
+
+      match /sync_state/{userId} {
+        allow read, write: if isValidId(userId);
+      }
+    }
+
+    // BRICS Federated Sovereign Aggregates (Cross-border indices)
+    match /brics_federation/{regionId}/aggregates/{aggregateId} {
+      allow read, write: if isValidId(regionId) && isValidId(aggregateId);
+    }
+  }
+}
+

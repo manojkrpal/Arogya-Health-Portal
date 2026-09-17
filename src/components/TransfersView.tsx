@@ -62,6 +62,10 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
 
   const canApprove =
     user?.role === 'district_officer' || user?.role === 'national_war_room';
+  const canPropose =
+    user?.role === 'district_officer' ||
+    user?.role === 'national_war_room' ||
+    user?.role === 'phc_nurse';
 
   const handleExplainOrder = async (order: TransferOrder) => {
     setIsAdvisoryOpen(true);
@@ -206,7 +210,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {canApprove && (
+          {canPropose && (
             <button
               onClick={() => setShowModal(true)}
               className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow shadow-teal-500/20"

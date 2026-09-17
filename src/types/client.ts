@@ -1,4 +1,11 @@
-export type UserRole = 'phc_nurse' | 'district_officer' | 'national_war_room' | 'brics_analyst';
+export type UserRole =
+  | 'phc_nurse'
+  | 'district_officer'
+  | 'national_war_room'
+  | 'brics_analyst'
+  | 'state_admin'
+  | 'procurement_officer'
+  | 'compliance_auditor';
 
 export interface CurrentUser {
   id: string;

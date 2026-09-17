@@ -12,6 +12,12 @@ import { optimizeTransfersForShortage } from '../services/optimizer.js';
 import { explainTransferPlanWithGemini } from '../services/gemini.js';
 import { approveTransferOrder } from '../services/transfers.js';
 import { recomputeAlerts } from '../services/alerts.js';
+import {
+  adjustFirestoreStock,
+  proposeFirestoreTransfer,
+  approveFirestoreTransfer,
+  logAuditEvent,
+} from '../db/firestore-service.js';
 
 export const apiRouter = express.Router();
 
@@ -543,6 +549,15 @@ apiRouter.post('/stock/adjust', requireRole('phc_nurse', 'district_officer'), as
       ]
     );
 
+    // Sync to Firestore in background
+    adjustFirestoreStock(
+      facilityId,
+      skuId,
+      typeof delta === 'number' ? delta : updatedQty - (curRes.rows[0]?.qty ?? 0),
+      'PHYSICAL_STOCK_UPDATE',
+      { userId: user.userId, email: user.email, role: user.role }
+    ).catch((err) => console.warn('[FirestoreSync] Stock adjustment sync error:', err.message));
+
     // Recompute alerts in background
     recomputeAlerts().catch((err) => console.error('Alert recompute error:', err));
 
@@ -871,6 +886,18 @@ apiRouter.post('/transfers/propose', requireRole('district_officer', 'national_w
          VALUES ($1, 'TRANSFER_PROPOSED', 'transfer_orders', $2, $3, $4)`,
         [user.userId, orderRes.rows[0].id, JSON.stringify(p), (req as any).requestId]
       );
+
+      // Sync to Firestore in background
+      proposeFirestoreTransfer({
+        id: orderRes.rows[0].id,
+        fromFacilityId: p.fromFacilityId,
+        toFacilityId: p.toFacilityId,
+        skuId: p.skuId,
+        qty: p.qty,
+        etaHours: p.etaHours,
+        distanceKm: p.distanceKm,
+        proposedBy: user.email,
+      }).catch((err) => console.warn('[FirestoreSync] Propose transfer sync error:', err.message));
     }
 
     res.json({
@@ -916,6 +943,13 @@ apiRouter.patch('/transfers/:id', requireRole('district_officer', 'national_war_
 
     // Approve: execute the atomic SQL transaction
     const result = await approveTransferOrder(id, user.userId, requestId);
+
+    // Sync to Firestore in background
+    approveFirestoreTransfer(
+      id,
+      { userId: user.userId, email: user.email, role: user.role },
+      'Executed via District Logistics Command'
+    ).catch((err) => console.warn('[FirestoreSync] Approve transfer sync warning:', err.message));
 
     // Recompute alerts in background
     recomputeAlerts().catch((err) => console.error('Alert recompute error:', err));

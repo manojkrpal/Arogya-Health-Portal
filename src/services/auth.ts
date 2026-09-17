@@ -5,10 +5,19 @@ import { query } from '../db/db.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'arogyanet_jwt_production_secret_key_demo_2025';
 
+export type RoleType =
+  | 'phc_nurse'
+  | 'district_officer'
+  | 'national_war_room'
+  | 'brics_analyst'
+  | 'state_admin'
+  | 'procurement_officer'
+  | 'compliance_auditor';
+
 export interface TokenPayload {
   userId: string;
   email: string;
-  role: 'phc_nurse' | 'district_officer' | 'national_war_room' | 'brics_analyst';
+  role: RoleType;
   tenantId: string;
   facilityId: string | null;
 }

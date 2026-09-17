@@ -54,6 +54,10 @@ async function runTests() {
   const mancharId = mancharRes.rows[0].id;
   const tenantId = mancharRes.rows[0].tenant_id;
 
+  // Reset donor stock to ensure test idempotency across runs
+  await query('UPDATE stock_on_hand SET qty = 450 WHERE facility_id = $1 AND sku_id = $2', [mancharId, orsId]);
+  await query('UPDATE stock_on_hand SET qty = 20 WHERE facility_id = $1 AND sku_id = $2', [shirurId, orsId]);
+
   // Insert proposed order
   const orderRes = await query(
     `INSERT INTO transfer_orders (tenant_id, from_facility, to_facility, sku_id, qty, status, eta_hours, distance_km)

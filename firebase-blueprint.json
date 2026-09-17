@@ -1,0 +1,282 @@
+{
+  "entities": {
+    "Facility": {
+      "title": "Facility",
+      "description": "Primary healthcare center, community health center, or district hospital",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tenant_id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "type": { "type": "string", "enum": ["PHC", "CHC", "DH", "SDH"] },
+        "state": { "type": "string", "maxLength": 50 },
+        "district": { "type": "string", "maxLength": 100 },
+        "location": {
+          "type": "object",
+          "description": "Geographical coordinates",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          },
+          "required": ["latitude", "longitude"]
+        },
+        "capacity": {
+          "type": "object",
+          "properties": {
+            "beds_total": { "type": "number" },
+            "beds_available": { "type": "number" },
+            "oxygen_lines_total": { "type": "number" },
+            "oxygen_lines_available": { "type": "number" },
+            "icu_capacity_total": { "type": "number" },
+            "icu_capacity_available": { "type": "number" }
+          }
+        },
+        "staffing": {
+          "type": "object",
+          "properties": {
+            "phc_nurse_count": { "type": "number" },
+            "district_officer_assigned": { "type": "string", "maxLength": 128 }
+          }
+        },
+        "status": { "type": "string", "enum": ["active", "decommissioned"] },
+        "created_at": { "type": "string" },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["id", "tenant_id", "name", "state", "district", "location", "status"]
+    },
+    "Sku": {
+      "title": "SKU",
+      "description": "Medicines, vaccines, and medical consumables",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tenant_id": { "type": "string", "maxLength": 128 },
+        "code": { "type": "string", "maxLength": 50 },
+        "name": { "type": "string", "maxLength": 200 },
+        "category": { "type": "string", "enum": ["VACCINE", "ESSENTIAL_DRUG", "MATERNAL_HEALTH", "ANTIBIOTIC"] },
+        "unit": { "type": "string", "maxLength": 50 },
+        "reorder_point": { "type": "number" },
+        "safety_stock": { "type": "number" },
+        "cold_chain_required": { "type": "boolean" },
+        "shelf_life_days": { "type": "number" }
+      },
+      "required": ["id", "code", "name", "category", "unit", "reorder_point", "cold_chain_required"]
+    },
+    "StockMovement": {
+      "title": "StockMovement",
+      "description": "Immutable ledger record of inventory change",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tenant_id": { "type": "string", "maxLength": 128 },
+        "facility_id": { "type": "string", "maxLength": 128 },
+        "sku_id": { "type": "string", "maxLength": 128 },
+        "quantity_delta": { "type": "number" },
+        "qty_after": { "type": "number" },
+        "reason": { "type": "string", "enum": ["stock_in", "stock_adjust", "transfer_send", "transfer_receive", "dispensed"] },
+        "actor": { "type": "string", "maxLength": 128 },
+        "photo_uri": { "type": "string", "maxLength": 512 },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "tenant_id", "facility_id", "sku_id", "quantity_delta", "qty_after", "reason", "actor", "timestamp"]
+    },
+    "StockOnHand": {
+      "title": "StockOnHand",
+      "description": "Current on-hand inventory per SKU at a facility",
+      "type": "object",
+      "properties": {
+        "facility_id": { "type": "string", "maxLength": 128 },
+        "sku_id": { "type": "string", "maxLength": 128 },
+        "qty": { "type": "number" },
+        "reorder_point": { "type": "number" },
+        "updated_at": { "type": "string" },
+        "updated_by": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["facility_id", "sku_id", "qty", "reorder_point"]
+    },
+    "Alert": {
+      "title": "Alert",
+      "description": "Outbreak surge or stockout risk notification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tenant_id": { "type": "string", "maxLength": 128 },
+        "facility_id": { "type": "string", "maxLength": 128 },
+        "sku_id": { "type": "string", "maxLength": 128 },
+        "severity": { "type": "string", "enum": ["low", "medium", "warn", "critical"] },
+        "type": { "type": "string", "maxLength": 64 },
+        "message": { "type": "string", "maxLength": 500 },
+        "open": { "type": "boolean" },
+        "triggered_at": { "type": "string" },
+        "acknowledged_at": { "type": "string" },
+        "ack_by": { "type": "string", "maxLength": 128 },
+        "sms_sent_at": { "type": "string" }
+      },
+      "required": ["id", "tenant_id", "facility_id", "severity", "type", "open", "triggered_at"]
+    },
+    "Transfer": {
+      "title": "Transfer",
+      "description": "Inter-facility medicine redistribution order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tenant_id": { "type": "string", "maxLength": 128 },
+        "from_facility_id": { "type": "string", "maxLength": 128 },
+        "to_facility_id": { "type": "string", "maxLength": 128 },
+        "sku_id": { "type": "string", "maxLength": 128 },
+        "quantity": { "type": "number" },
+        "status": { "type": "string", "enum": ["proposed", "approved", "rejected", "completed"] },
+        "decided_by": { "type": "string", "maxLength": 128 },
+        "decided_at": { "type": "string" },
+        "decision_reason": { "type": "string", "maxLength": 500 },
+        "cold_chain_satisfied": { "type": "boolean" },
+        "audit_trail": { "type": "string", "maxLength": 2048 },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "tenant_id", "from_facility_id", "to_facility_id", "sku_id", "quantity", "status", "created_at"]
+    },
+    "AuditEvent": {
+      "title": "AuditEvent",
+      "description": "Immutable security and operational compliance log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tenant_id": { "type": "string", "maxLength": 128 },
+        "actor_id": { "type": "string", "maxLength": 128 },
+        "action": { "type": "string", "maxLength": 100 },
+        "entity_type": { "type": "string", "maxLength": 100 },
+        "entity_id": { "type": "string", "maxLength": 128 },
+        "changes_before": { "type": "string", "maxLength": 4096 },
+        "changes_after": { "type": "string", "maxLength": 4096 },
+        "ip_address": { "type": "string", "maxLength": 64 },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "tenant_id", "actor_id", "action", "entity_type", "entity_id", "timestamp"]
+    },
+    "Forecast": {
+      "title": "Forecast",
+      "description": "Machine learning demand prediction for SKU and facility",
+      "type": "object",
+      "properties": {
+        "sku_id": { "type": "string", "maxLength": 128 },
+        "facility_id": { "type": "string", "maxLength": 128 },
+        "predicted_demand": { "type": "number" },
+        "stockout_prob_7d": { "type": "number" },
+        "confidence_95_upper": { "type": "number" },
+        "confidence_95_lower": { "type": "number" },
+        "model_version": { "type": "string", "maxLength": 50 },
+        "computed_at": { "type": "string" }
+      },
+      "required": ["sku_id", "facility_id", "predicted_demand", "model_version", "computed_at"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Authorized ArogyaNet actor with RBAC profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tenant_id": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 200 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "name": { "type": "string", "maxLength": 128 },
+        "role": {
+          "type": "string",
+          "enum": [
+            "phc_nurse",
+            "district_officer",
+            "state_admin",
+            "procurement_officer",
+            "compliance_auditor",
+            "national_war_room",
+            "brics_analyst"
+          ]
+        },
+        "facility_id": { "type": "string", "maxLength": 128 },
+        "state_id": { "type": "string", "maxLength": 50 },
+        "active": { "type": "boolean" },
+        "mfa_enabled": { "type": "boolean" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "tenant_id", "email", "role", "active"]
+    },
+    "ExportJob": {
+      "title": "ExportJob",
+      "description": "Server-side report generation job",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tenant_id": { "type": "string", "maxLength": 128 },
+        "requester_id": { "type": "string", "maxLength": 128 },
+        "export_type": { "type": "string", "enum": ["csv", "pdf"] },
+        "entity_type": { "type": "string", "enum": ["transfers", "alerts", "stock", "audit"] },
+        "status": { "type": "string", "enum": ["queued", "processing", "ready", "expired", "failed"] },
+        "gcs_uri": { "type": "string", "maxLength": 512 },
+        "created_at": { "type": "string" },
+        "expires_at": { "type": "string" }
+      },
+      "required": ["id", "tenant_id", "requester_id", "export_type", "entity_type", "status", "created_at"]
+    },
+    "BricsFederationAggregate": {
+      "title": "BricsFederationAggregate",
+      "description": "Sovereign aggregate index for cross-border disease surveillance",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "region_id": { "type": "string", "maxLength": 50 },
+        "country_code": { "type": "string", "maxLength": 5 },
+        "report_date": { "type": "string" },
+        "epidemic_severity_score": { "type": "number" },
+        "aggregate_stockout_risk": { "type": "number" },
+        "surveillance_indices": { "type": "string", "maxLength": 2048 },
+        "model_version": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "region_id", "country_code", "report_date", "epidemic_severity_score", "model_version"]
+    }
+  },
+  "firestore": {
+    "/tenants/{tenant_id}/facilities/{facility_id}": {
+      "schema": { "$ref": "#/entities/Facility" },
+      "description": "Healthcare facilities per tenant"
+    },
+    "/tenants/{tenant_id}/skus/{sku_id}": {
+      "schema": { "$ref": "#/entities/Sku" },
+      "description": "Standard medical catalog and inventory thresholds"
+    },
+    "/tenants/{tenant_id}/inventory/{facility_id}/stock_movements/{movement_id}": {
+      "schema": { "$ref": "#/entities/StockMovement" },
+      "description": "Inventory movement transaction ledger"
+    },
+    "/tenants/{tenant_id}/inventory/{facility_id}/stock/{sku_id}": {
+      "schema": { "$ref": "#/entities/StockOnHand" },
+      "description": "Aggregated stock on hand per SKU and facility"
+    },
+    "/tenants/{tenant_id}/alerts/{alert_id}": {
+      "schema": { "$ref": "#/entities/Alert" },
+      "description": "Active and historical operational alerts"
+    },
+    "/tenants/{tenant_id}/transfers/{transfer_id}": {
+      "schema": { "$ref": "#/entities/Transfer" },
+      "description": "Redistribution orders with approval audit trail"
+    },
+    "/tenants/{tenant_id}/audit_events/{event_id}": {
+      "schema": { "$ref": "#/entities/AuditEvent" },
+      "description": "Immutable compliance and access audit events"
+    },
+    "/tenants/{tenant_id}/forecasts/{sku_id}/by_facility/{facility_id}": {
+      "schema": { "$ref": "#/entities/Forecast" },
+      "description": "Predictive stockout and demand forecasts"
+    },
+    "/tenants/{tenant_id}/users/{user_id}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User accounts and RBAC assignments"
+    },
+    "/tenants/{tenant_id}/export_jobs/{job_id}": {
+      "schema": { "$ref": "#/entities/ExportJob" },
+      "description": "Asynchronous data export tasks"
+    },
+    "/brics_federation/{region_id}/aggregates/{aggregate_id}": {
+      "schema": { "$ref": "#/entities/BricsFederationAggregate" },
+      "description": "Anonymized cross-border federated surveillance indicators"
+    }
+  }
+}
