@@ -1,4 +1,5 @@
 import { query } from '../db/db.js';
+import { syncAlertToFirestore } from '../db/firestore-service.js';
 
 /**
  * Evaluates and synchronizes alert state based on stock, forecasts, and outbreak multiplier
@@ -45,19 +46,40 @@ export async function recomputeAlerts(): Promise<number> {
         [row.facility_id, row.sku_id]
       );
       if (existing.rows.length === 0) {
-        await query(
+        const ins = await query(
           `INSERT INTO alerts (tenant_id, facility_id, sku_id, severity, rule_code, message, open)
-           VALUES ($1, $2, $3, 'critical', 'PROB_04', $4, true)`,
+           VALUES ($1, $2, $3, 'critical', 'PROB_04', $4, true)
+           RETURNING id`,
           [row.tenant_id, row.facility_id, row.sku_id, msg]
         );
         newAlertCount++;
+        syncAlertToFirestore({
+          id: ins.rows[0].id,
+          facilityId: row.facility_id,
+          skuId: row.sku_id,
+          severity: 'critical',
+          ruleCode: 'PROB_04',
+          message: msg,
+          open: true,
+        }).catch((err) => console.warn('[FirestoreAlertSync] Warning:', err.message));
       }
     } else {
       // Auto-resolve if condition no longer holds
-      await query(
-        `UPDATE alerts SET open = false WHERE facility_id = $1 AND sku_id = $2 AND rule_code = 'PROB_04' AND open = true`,
+      const resolved = await query(
+        `UPDATE alerts SET open = false WHERE facility_id = $1 AND sku_id = $2 AND rule_code = 'PROB_04' AND open = true RETURNING id`,
         [row.facility_id, row.sku_id]
       );
+      for (const resRow of resolved.rows) {
+        syncAlertToFirestore({
+          id: resRow.id,
+          facilityId: row.facility_id,
+          skuId: row.sku_id,
+          severity: 'critical',
+          ruleCode: 'PROB_04',
+          message: 'Resolved: stockout risk cleared',
+          open: false,
+        }).catch((err) => console.warn('[FirestoreAlertSync] Warning:', err.message));
+      }
     }
 
     // Check COVER_7D (warn): qty < effective_demand * 1.2
@@ -68,21 +90,43 @@ export async function recomputeAlerts(): Promise<number> {
         [row.facility_id, row.sku_id]
       );
       if (existing.rows.length === 0) {
-        await query(
+        const ins = await query(
           `INSERT INTO alerts (tenant_id, facility_id, sku_id, severity, rule_code, message, open)
-           VALUES ($1, $2, $3, 'warn', 'COVER_7D', $4, true)`,
+           VALUES ($1, $2, $3, 'warn', 'COVER_7D', $4, true)
+           RETURNING id`,
           [row.tenant_id, row.facility_id, row.sku_id, msg]
         );
         newAlertCount++;
+        syncAlertToFirestore({
+          id: ins.rows[0].id,
+          facilityId: row.facility_id,
+          skuId: row.sku_id,
+          severity: 'warn',
+          ruleCode: 'COVER_7D',
+          message: msg,
+          open: true,
+        }).catch((err) => console.warn('[FirestoreAlertSync] Warning:', err.message));
       }
     } else {
       // Auto-resolve if stock restored
-      await query(
-        `UPDATE alerts SET open = false WHERE facility_id = $1 AND sku_id = $2 AND rule_code = 'COVER_7D' AND open = true`,
+      const resolved = await query(
+        `UPDATE alerts SET open = false WHERE facility_id = $1 AND sku_id = $2 AND rule_code = 'COVER_7D' AND open = true RETURNING id`,
         [row.facility_id, row.sku_id]
       );
+      for (const resRow of resolved.rows) {
+        syncAlertToFirestore({
+          id: resRow.id,
+          facilityId: row.facility_id,
+          skuId: row.sku_id,
+          severity: 'warn',
+          ruleCode: 'COVER_7D',
+          message: 'Resolved: stock restored above 7-day cover threshold',
+          open: false,
+        }).catch((err) => console.warn('[FirestoreAlertSync] Warning:', err.message));
+      }
     }
   }
 
   return newAlertCount;
 }
+

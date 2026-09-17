@@ -224,3 +224,156 @@ export async function approveFirestoreTransfer(
     };
   });
 }
+
+/**
+ * Update facility capacity in Firestore and log an immutable audit event
+ */
+export async function updateFirestoreCapacity(
+  facilityId: string,
+  capacity: { bedsTotal?: number; bedsAvailable?: number; oxygenCylinders?: number },
+  actor: { userId: string; email: string; role: string }
+): Promise<void> {
+  const facDocRef = doc(db, 'tenants', TENANT_ID, 'facilities', facilityId);
+  await setDoc(
+    facDocRef,
+    {
+      id: facilityId,
+      tenant_id: TENANT_ID,
+      capacity: {
+        ...(capacity.bedsTotal !== undefined ? { beds_total: capacity.bedsTotal } : {}),
+        ...(capacity.bedsAvailable !== undefined ? { beds_available: capacity.bedsAvailable } : {}),
+        ...(capacity.oxygenCylinders !== undefined ? { oxygen_lines_available: capacity.oxygenCylinders } : {}),
+      },
+      updated_at: new Date().toISOString(),
+    },
+    { merge: true }
+  );
+
+  await logAuditEvent({
+    actor,
+    action: 'CAPACITY_UPDATE',
+    entityType: 'FACILITY_CAPACITY',
+    entityId: facilityId,
+    after: capacity,
+  });
+}
+
+/**
+ * Update facility attendance in Firestore and log an immutable audit event
+ */
+export async function updateFirestoreAttendance(
+  facilityId: string,
+  attendance: { nursesPresent?: number; doctorsPresent?: number; anmsPresent?: number; rosterNurses?: number },
+  actor: { userId: string; email: string; role: string }
+): Promise<void> {
+  const facDocRef = doc(db, 'tenants', TENANT_ID, 'facilities', facilityId);
+  await setDoc(
+    facDocRef,
+    {
+      staffing: {
+        phc_nurse_count: attendance.nursesPresent ?? 0,
+        doctors_count: attendance.doctorsPresent ?? 0,
+        anms_count: attendance.anmsPresent ?? 0,
+        roster_nurses: attendance.rosterNurses ?? 0,
+      },
+      updated_at: new Date().toISOString(),
+    },
+    { merge: true }
+  );
+
+  await logAuditEvent({
+    actor,
+    action: 'ATTENDANCE_UPDATE',
+    entityType: 'FACILITY_ATTENDANCE',
+    entityId: facilityId,
+    after: attendance,
+  });
+}
+
+/**
+ * Update tenant emergency outbreak multiplier in Firestore
+ */
+export async function updateFirestoreEmergency(
+  tenantId: string,
+  outbreakMultiplier: number,
+  activeLabel: string,
+  actor: { userId: string; email: string; role: string }
+): Promise<void> {
+  const targetTenantId = tenantId || TENANT_ID;
+  const tenantDocRef = doc(db, 'tenants', targetTenantId);
+  await setDoc(
+    tenantDocRef,
+    {
+      emergency_outbreak_multiplier: outbreakMultiplier,
+      emergency_active_label: activeLabel,
+      updated_at: new Date().toISOString(),
+    },
+    { merge: true }
+  );
+
+  await logAuditEvent({
+    actor,
+    action: 'EMERGENCY_SURGE_ACTIVATED',
+    entityType: 'TENANT_EMERGENCY',
+    entityId: targetTenantId,
+    after: { outbreakMultiplier, activeLabel },
+  });
+}
+
+/**
+ * Sync alert to Firestore collection /tenants/{tenantId}/alerts/{alertId}
+ */
+export async function syncAlertToFirestore(alert: {
+  id: string;
+  facilityId: string;
+  skuId: string;
+  severity: string;
+  ruleCode: string;
+  message: string;
+  open: boolean;
+}): Promise<void> {
+  const alertDocRef = doc(db, 'tenants', TENANT_ID, 'alerts', alert.id);
+  await setDoc(
+    alertDocRef,
+    {
+      id: alert.id,
+      facility_id: alert.facilityId,
+      sku_id: alert.skuId,
+      severity: alert.severity,
+      rule_code: alert.ruleCode,
+      message: alert.message,
+      open: alert.open,
+      updated_at: new Date().toISOString(),
+    },
+    { merge: true }
+  );
+}
+
+/**
+ * Sync BRICS federation aggregates to Firestore /brics_federation/{regionId}/aggregates/{aggregateId}
+ */
+export async function syncFederationAggregateToFirestore(
+  regionId: string,
+  aggregateId: string,
+  aggregateData: {
+    tenantCode: string;
+    countryCode: string;
+    skuCode: string;
+    predictedDemandIndex: number;
+    stockoutProbability: number;
+    surplusBand: string;
+    date: string;
+  }
+): Promise<void> {
+  const aggRef = doc(db, 'brics_federation', regionId, 'aggregates', aggregateId);
+  await setDoc(
+    aggRef,
+    {
+      ...aggregateData,
+      privacyStandard: 'DIFFERENTIAL_PRIVACY_EPSILON_0.5',
+      zeroPhiExportCertified: true,
+      updated_at: new Date().toISOString(),
+    },
+    { merge: true }
+  );
+}

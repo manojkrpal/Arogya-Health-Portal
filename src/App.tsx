@@ -8,6 +8,7 @@ import { AlertsView } from './components/AlertsView.js';
 import { TransfersView } from './components/TransfersView.js';
 import { FederationView } from './components/FederationView.js';
 import { StockView } from './components/StockView.js';
+import { AuditView } from './components/AuditView.js';
 import {
   FacilitySnapshot,
   AlertItem,
@@ -27,13 +28,14 @@ function ArogyaNetApp() {
   const [selectedFacility, setSelectedFacility] = useState<FacilitySnapshot | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // If role is BRICS analyst, strictly enforce federation tab
+  // If role is BRICS analyst, strictly enforce federation tab; if auditor, switch to audit tab
   useEffect(() => {
     if (user?.role === 'brics_analyst') {
       setActiveTab('federation');
       setSelectedFacility(null);
-    } else if (activeTab === 'federation' && user?.role !== 'brics_analyst') {
-      // Optional: keep on federation or switch to map
+    } else if (user?.role === 'compliance_auditor') {
+      setActiveTab('audit');
+      setSelectedFacility(null);
     }
   }, [user?.role]);
 
@@ -166,6 +168,12 @@ function ArogyaNetApp() {
 
         {activeTab === 'federation' && (
           <FederationView />
+        )}
+
+        {activeTab === 'audit' && user?.role !== 'brics_analyst' && (
+          <div className="max-w-5xl mx-auto p-3 sm:p-6">
+            <AuditView />
+          </div>
         )}
 
         {/* Facility Detail Slide-over Drawer */}

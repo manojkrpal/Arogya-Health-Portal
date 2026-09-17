@@ -182,3 +182,37 @@ export interface FederationModelCard {
   notes: string;
   applied_at: string;
 }
+
+export interface AuditEventItem {
+  id: string;
+  at: string;
+  action: string;
+  entity: string;
+  entityId: string;
+  actor: {
+    id: string | null;
+    email: string | null;
+    role: string | null;
+    name?: string | null;
+  };
+  payload: any;
+  requestId: string | null;
+  integrityHash: string;
+}
+
+export interface AuditVerifyResult {
+  success: boolean;
+  verifiedCount: number;
+  cumulativeDigest: string;
+  zeroPhiCertified: boolean;
+  tamperEvidentStatus: 'SECURE_AND_VERIFIED' | 'TAMPER_DETECTED';
+  checkedAt: string;
+}
+
+export interface QueuedOfflineItem {
+  idempotencyKey: string;
+  action: 'STOCK_ADJUST' | 'CAPACITY_UPDATE' | 'ATTENDANCE_UPDATE';
+  facilityId: string;
+  payload: any;
+  timestamp: number;
+}

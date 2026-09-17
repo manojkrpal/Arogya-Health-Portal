@@ -130,6 +130,7 @@ async function runStage2SupplyChainTests() {
   console.log('✔ Test 4 passed: Cold chain logistics governance verified');
 
   console.log('--- ALL STAGE 2 SUPPLY CHAIN TESTS PASSED! ---');
+  process.exit(0);
 }
 
 runStage2SupplyChainTests().catch((err) => {

@@ -7,9 +7,10 @@ import {
   ArrowLeftRight,
   Globe2,
   Lock,
+  ShieldCheck,
 } from 'lucide-react';
 
-export type TabType = 'map' | 'alerts' | 'stock' | 'transfers' | 'federation';
+export type TabType = 'map' | 'alerts' | 'stock' | 'transfers' | 'federation' | 'audit';
 
 interface BottomNavProps {
   activeTab: TabType;
@@ -26,14 +27,22 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 }) => {
   const { user } = useAuth();
   const isBrics = user?.role === 'brics_analyst';
+  const isAuditor = user?.role === 'compliance_auditor';
+  const canViewAudit = ['compliance_auditor', 'national_war_room', 'state_admin', 'district_officer'].includes(user?.role || '');
 
-  const navItems = [
-    { id: 'map', label: 'Map', icon: MapPin, restrictedForBrics: true },
-    { id: 'alerts', label: 'Alerts', icon: Bell, badge: alertCount, restrictedForBrics: true },
-    { id: 'stock', label: 'Stock', icon: Package, restrictedForBrics: true },
-    { id: 'transfers', label: 'Transfers', icon: ArrowLeftRight, badge: transferCount, restrictedForBrics: true },
-    { id: 'federation', label: 'BRICS', icon: Globe2, restrictedForBrics: false },
+  const baseNavItems = [
+    { id: 'map', label: 'Map', icon: MapPin, restrictedForBrics: true, hideForAuditor: true },
+    { id: 'alerts', label: 'Alerts', icon: Bell, badge: alertCount, restrictedForBrics: true, hideForAuditor: false },
+    { id: 'stock', label: 'Stock', icon: Package, restrictedForBrics: true, hideForAuditor: false },
+    { id: 'transfers', label: 'Transfers', icon: ArrowLeftRight, badge: transferCount, restrictedForBrics: true, hideForAuditor: false },
+    { id: 'audit', label: 'Audit', icon: ShieldCheck, restrictedForBrics: true, hideForAuditor: false, showOnlyFor: canViewAudit },
+    { id: 'federation', label: 'BRICS', icon: Globe2, restrictedForBrics: false, hideForAuditor: false },
   ];
+
+  const navItems = baseNavItems.filter((item) => {
+    if (item.showOnlyFor !== undefined && !item.showOnlyFor) return false;
+    return true;
+  });
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur border-t border-slate-800 safe-area-bottom">
@@ -80,3 +89,4 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     </nav>
   );
 };
+

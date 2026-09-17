@@ -27,6 +27,10 @@ async function runTests() {
   const orsRes = await query("SELECT id FROM skus WHERE code = 'ORS-20.5G'");
   const orsId = orsRes.rows[0].id;
 
+  const mancharResEarly = await query("SELECT id FROM facilities WHERE code = 'CHC-MANCHAR'");
+  const mancharIdEarly = mancharResEarly.rows[0].id;
+  await query('UPDATE stock_on_hand SET qty = 450 WHERE facility_id = $1 AND sku_id = $2', [mancharIdEarly, orsId]);
+
   // Drop stock of ORS at Shirur to 20 units (demand is 70)
   await query(
     'UPDATE stock_on_hand SET qty = 20, updated_at = NOW() WHERE facility_id = $1 AND sku_id = $2',
