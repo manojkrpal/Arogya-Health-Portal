@@ -108,12 +108,20 @@ function ArogyaNetApp() {
     setActiveTab('transfers');
   };
 
+  const handleNavigateHome = () => {
+    if (user?.role !== 'brics_analyst') {
+      setActiveTab('map');
+      setSelectedFacility(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-teal-500 selection:text-white">
       {/* Top Application Header */}
       <Navbar
         outbreakMultiplier={outbreakMultiplier}
         activeLabel={activeLabel}
+        onLogoClick={handleNavigateHome}
       />
 
       {/* Main Content Area */}

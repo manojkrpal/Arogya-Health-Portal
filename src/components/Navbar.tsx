@@ -5,7 +5,6 @@ import {
   Activity,
   UserCheck,
   Languages,
-  Database,
   Wifi,
   WifiOff,
   ChevronDown,
@@ -14,10 +13,15 @@ import {
 interface NavbarProps {
   outbreakMultiplier: number;
   activeLabel: string;
+  onLogoClick?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ outbreakMultiplier, activeLabel }) => {
-  const { user, switchRole, lang, setLang, isOnline, dbEngine } = useAuth();
+export const Navbar: React.FC<NavbarProps> = ({
+  outbreakMultiplier,
+  activeLabel,
+  onLogoClick,
+}) => {
+  const { user, switchRole, lang, setLang, isOnline } = useAuth();
   const [showRoleMenu, setShowRoleMenu] = useState(false);
 
   return (
@@ -33,14 +37,21 @@ export const Navbar: React.FC<NavbarProps> = ({ outbreakMultiplier, activeLabel 
       )}
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2">
-        {/* Logo & Title */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center text-slate-950 font-black shadow-md shadow-teal-500/20">
+        {/* Logo & Title (Clicking navigates to Map / Home) */}
+        <button
+          id="navbar-logo-btn"
+          type="button"
+          onClick={onLogoClick}
+          className="flex items-center gap-2.5 text-left group hover:opacity-90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded-lg p-0.5 -m-0.5 cursor-pointer"
+          title="Go to Map (Home)"
+          aria-label="ArogyaNet Home"
+        >
+          <div className="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center text-slate-950 font-black shadow-md shadow-teal-500/20 group-hover:scale-105 transition-transform">
             <Activity className="w-5 h-5 text-slate-950" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold text-slate-100 tracking-tight leading-none">
+              <h1 className="text-base font-bold text-slate-100 tracking-tight leading-none group-hover:text-teal-300 transition-colors">
                 ArogyaNet
               </h1>
               <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-teal-500/15 text-teal-300 border border-teal-500/20">
@@ -51,21 +62,22 @@ export const Navbar: React.FC<NavbarProps> = ({ outbreakMultiplier, activeLabel 
               National Medicine, Bed & Attendance Grid
             </p>
           </div>
-        </div>
+        </button>
 
-        {/* Right Action Controls: DB badge, Language, Role Switcher */}
+        {/* Right Action Controls: Network status, Language, Role Switcher */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Online/Offline status */}
           <div
-            title={isOnline ? 'Online (Postgres sync)' : 'Offline mode'}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium border ${
+            id="network-status-badge"
+            title={isOnline ? 'Connected (Cloud SQL real-time sync)' : 'Offline mode'}
+            className={`flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium border ${
               isOnline
                 ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40'
                 : 'bg-rose-950/40 text-rose-300 border-rose-800/40'
             }`}
           >
             {isOnline ? <Wifi className="w-3 h-3 text-emerald-400" /> : <WifiOff className="w-3 h-3 text-rose-400" />}
-            <span className="hidden sm:inline">{dbEngine}</span>
+            <span className="hidden sm:inline">{isOnline ? 'Online' : 'Offline'}</span>
           </div>
 
           {/* Hindi/English Toggle (Accessible everywhere) */}
