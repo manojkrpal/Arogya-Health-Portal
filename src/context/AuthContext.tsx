@@ -26,6 +26,14 @@ export const DEMO_USERS = [
     badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
   },
   {
+    role: 'phc_nurse',
+    title: 'CHC Nurse',
+    facility: 'Manchar CHC',
+    email: 'nurse@manchar.chc.gov.in',
+    password: 'nurse123',
+    badgeColor: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
+  },
+  {
     role: 'district_officer',
     title: 'District Officer',
     facility: 'Pune District',
@@ -46,7 +54,7 @@ export const DEMO_USERS = [
     title: 'BRICS Analyst',
     facility: 'Federation ESS',
     email: 'analyst@brics-health.org',
-    password: 'brics123',
+    password: 'analyst123',
     badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
   },
 ];

@@ -118,7 +118,7 @@ export const Navbar: React.FC<NavbarProps> = ({ outbreakMultiplier, activeLabel 
                       const isActive = user?.email === u.email;
                       return (
                         <button
-                          key={u.role}
+                          key={u.email}
                           onClick={() => {
                             switchRole(u.email, u.password);
                             setShowRoleMenu(false);

@@ -35,8 +35,9 @@ ON CONFLICT (tenant_id, code) DO NOTHING;
 -- 3. Users (Passwords: nurse123, officer123, warroom123, analyst123)
 INSERT INTO users (id, tenant_id, email, password_hash, role, facility_id) VALUES
 ('90000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'nurse@shirur.phc.gov.in', '$2b$10$ahSZWIQcqkOMyLO/Jftj5.7Jls1IWcY6NVxBXnH/f70YS/EMXtMxS', 'phc_nurse', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+('90000000-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111111', 'nurse@manchar.chc.gov.in', '$2b$10$ahSZWIQcqkOMyLO/Jftj5.7Jls1IWcY6NVxBXnH/f70YS/EMXtMxS', 'phc_nurse', 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
 ('90000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'officer@pune.health.gov.in', '$2b$10$hJn4S5RU8bdF.MLSnRaW1.F3Ttyfgu8hsOF52DTqjVGFCVe5N2.3y', 'district_officer', NULL),
-('90000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'warroom@mohfw.gov.in', '$2b$10$cuBDk6VLpGviopfakhaz2OLLR9Gfw5DInLCZuBsRcde7Lt8J7D/y', 'national_war_room', NULL),
+('90000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'warroom@mohfw.gov.in', '$2b$10$h6wcLy7yBlG147J1aXD.4Ogf1V4wGeIMvdh2Wgdlk.zYdRO4i9rLK', 'national_war_room', NULL),
 ('90000000-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', 'analyst@brics-health.org', '$2b$10$/VLvVDSaW1/caHKcutzyl.WmIKtM7xIwjtU0hASa0AxuD3BPwMtai', 'brics_analyst', NULL)
 ON CONFLICT (email) DO NOTHING;
 
