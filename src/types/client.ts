@@ -216,3 +216,65 @@ export interface QueuedOfflineItem {
   payload: any;
   timestamp: number;
 }
+
+export interface TelemetryDevice {
+  id: string;
+  facilityId: string;
+  facilityName: string;
+  facilityDistrict: string;
+  level: string;
+  deviceId: string;
+  temperature: number;
+  tempMinSafe: number;
+  tempMaxSafe: number;
+  status: 'optimal' | 'warning' | 'critical_excursion';
+  batteryPct: number;
+  powerSource: string;
+  doorOpen: boolean;
+  recordedAt: string;
+  coldChainCapable: boolean;
+}
+
+export interface ExpiryRadarItem {
+  lotId: string;
+  facilityId: string;
+  facilityName: string;
+  district: string;
+  skuId: string;
+  skuCode: string;
+  skuName: string;
+  coldChain: boolean;
+  qty: number;
+  expiresOn: string;
+  daysToExpiry: number;
+  urgency: 'critical' | 'high' | 'moderate';
+  recommendedAction: string;
+  suggestedRecipient?: {
+    facilityId: string;
+    facilityName: string;
+    distanceKm: number;
+    dailyDemand: number;
+  };
+}
+
+export interface DispatchRoutePlan {
+  transferId: string;
+  fromFacilityId: string;
+  fromFacilityName: string;
+  toFacilityId: string;
+  toFacilityName: string;
+  skuCode: string;
+  skuName: string;
+  qty: number;
+  coldChainRequired: boolean;
+  distanceKm: number;
+  estimatedTransitHours: number;
+  coldBoxPassiveWindowHours: number;
+  thermalSafetyMarginHours: number;
+  status: 'proposed' | 'approved' | 'in_transit' | 'completed';
+  vehicleType: string;
+  checkpoints: Array<{ name: string; lat: number; lng: number; etaMinutes: number }>;
+  dispatchStartedAt?: string;
+  dispatchedByEmail?: string;
+  completedAt?: string;
+}

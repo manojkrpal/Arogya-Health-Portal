@@ -200,10 +200,23 @@ CREATE TABLE IF NOT EXISTS federation_model_cards (
   applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- 17. Cold Chain Telemetry (IoT Dataloggers & Solar Direct Drive Units)
+CREATE TABLE IF NOT EXISTS cold_chain_telemetry (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+  device_id VARCHAR(64) NOT NULL,
+  temperature NUMERIC(4,1) NOT NULL,
+  battery_pct INT NOT NULL DEFAULT 100 CHECK (battery_pct BETWEEN 0 AND 100),
+  power_source VARCHAR(32) NOT NULL DEFAULT 'solar_grid',
+  door_open BOOLEAN NOT NULL DEFAULT false,
+  recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_telemetry_facility_time ON cold_chain_telemetry(facility_id, recorded_at DESC);
+
 -- ==========================================================
 -- ROW-LEVEL SECURITY (RLS) POLICIES
 -- Defense in depth: brics_analyst has NO direct SELECT access to
--- stock_on_hand, stock_lots, attendance_daily, or transfer_orders.
+-- stock_on_hand, stock_lots, attendance_daily, transfer_orders, or cold_chain_telemetry.
 -- ==========================================================
 ALTER TABLE stock_on_hand ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stock_on_hand FORCE ROW LEVEL SECURITY;
@@ -213,6 +226,8 @@ ALTER TABLE attendance_daily ENABLE ROW LEVEL SECURITY;
 ALTER TABLE attendance_daily FORCE ROW LEVEL SECURITY;
 ALTER TABLE transfer_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transfer_orders FORCE ROW LEVEL SECURITY;
+ALTER TABLE cold_chain_telemetry ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cold_chain_telemetry FORCE ROW LEVEL SECURITY;
 
 -- Note: We configure session variable 'app.current_user_role'
 DROP POLICY IF EXISTS rls_stock_on_hand_analyst ON stock_on_hand;
@@ -235,6 +250,12 @@ CREATE POLICY rls_attendance_daily_analyst ON attendance_daily
 
 DROP POLICY IF EXISTS rls_transfer_orders_analyst ON transfer_orders;
 CREATE POLICY rls_transfer_orders_analyst ON transfer_orders
+  FOR ALL
+  USING (COALESCE(current_setting('app.current_user_role', true), '') <> 'brics_analyst')
+  WITH CHECK (COALESCE(current_setting('app.current_user_role', true), '') <> 'brics_analyst');
+
+DROP POLICY IF EXISTS rls_telemetry_analyst ON cold_chain_telemetry;
+CREATE POLICY rls_telemetry_analyst ON cold_chain_telemetry
   FOR ALL
   USING (COALESCE(current_setting('app.current_user_role', true), '') <> 'brics_analyst')
   WITH CHECK (COALESCE(current_setting('app.current_user_role', true), '') <> 'brics_analyst');

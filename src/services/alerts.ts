@@ -127,6 +127,160 @@ export async function recomputeAlerts(): Promise<number> {
     }
   }
 
+  // -------------------------------------------------------------
+  // STAGE 5: EXPIRY_WARNING Alerts (Lots expiring in <= 30 days)
+  // -------------------------------------------------------------
+  try {
+    const expiringLots = await query(`
+      SELECT
+        l.id as lot_id,
+        l.facility_id,
+        f.tenant_id,
+        f.name as facility_name,
+        l.sku_id,
+        s.code as sku_code,
+        s.name as sku_name,
+        l.qty,
+        l.expires_on,
+        (l.expires_on - CURRENT_DATE) as days_left
+      FROM stock_lots l
+      JOIN facilities f ON f.id = l.facility_id
+      JOIN skus s ON s.id = l.sku_id
+      WHERE l.qty > 0 AND l.expires_on <= CURRENT_DATE + INTERVAL '30 days'
+    `);
+
+    // Keep track of which (facility_id, sku_id) currently have expiring lots
+    const activeExpiringSet = new Set<string>();
+
+    for (const lot of expiringLots.rows) {
+      const pairKey = `${lot.facility_id}_${lot.sku_id}`;
+      activeExpiringSet.add(pairKey);
+
+      const daysLeft = Math.max(0, parseInt(lot.days_left, 10));
+      const expDate = lot.expires_on instanceof Date ? lot.expires_on.toISOString().slice(0, 10) : String(lot.expires_on).slice(0, 10);
+      const msg = `EXPIRY ALERT: ${lot.sku_name} lot (${lot.qty} units) expires in ${daysLeft} days (${expDate}). Immediate first-line distribution or transfer recommended.`;
+
+      const existing = await query(
+        `SELECT id FROM alerts WHERE facility_id = $1 AND sku_id = $2 AND rule_code = 'EXPIRY_WARNING' AND open = true`,
+        [lot.facility_id, lot.sku_id]
+      );
+
+      if (existing.rows.length === 0) {
+        const ins = await query(
+          `INSERT INTO alerts (tenant_id, facility_id, sku_id, severity, rule_code, message, open)
+           VALUES ($1, $2, $3, 'warn', 'EXPIRY_WARNING', $4, true)
+           RETURNING id`,
+          [lot.tenant_id, lot.facility_id, lot.sku_id, msg]
+        );
+        newAlertCount++;
+        syncAlertToFirestore({
+          id: ins.rows[0].id,
+          facilityId: lot.facility_id,
+          skuId: lot.sku_id,
+          severity: 'warn',
+          ruleCode: 'EXPIRY_WARNING',
+          message: msg,
+          open: true,
+        }).catch((err) => console.warn('[FirestoreAlertSync] Expiry alert sync warning:', err.message));
+      }
+    }
+
+    // Auto-resolve EXPIRY_WARNING alerts that no longer have lots expiring in <= 30d
+    const openExpAlerts = await query(
+      `SELECT id, facility_id, sku_id FROM alerts WHERE rule_code = 'EXPIRY_WARNING' AND open = true`
+    );
+    for (const a of openExpAlerts.rows) {
+      const pairKey = `${a.facility_id}_${a.sku_id}`;
+      if (!activeExpiringSet.has(pairKey)) {
+        await query(`UPDATE alerts SET open = false WHERE id = $1`, [a.id]);
+        syncAlertToFirestore({
+          id: a.id,
+          facilityId: a.facility_id,
+          skuId: a.sku_id,
+          severity: 'warn',
+          ruleCode: 'EXPIRY_WARNING',
+          message: 'Resolved: Expiring lot cleared/consumed',
+          open: false,
+        }).catch((err) => console.warn('[FirestoreAlertSync] Warning:', err.message));
+      }
+    }
+  } catch (expErr: any) {
+    console.warn('[Alerts] Expiry warning check warning:', expErr.message);
+  }
+
+  // -------------------------------------------------------------
+  // STAGE 5: TEMP_EXCURSION Alerts (Cold Chain < 2.0°C or > 8.0°C)
+  // -------------------------------------------------------------
+  try {
+    const telemetryRows = await query(`
+      SELECT DISTINCT ON (t.facility_id)
+        t.facility_id,
+        f.tenant_id,
+        f.name as facility_name,
+        t.device_id,
+        t.temperature,
+        t.battery_pct,
+        t.recorded_at
+      FROM cold_chain_telemetry t
+      JOIN facilities f ON f.id = t.facility_id
+      WHERE f.cold_chain_capable = true
+      ORDER BY t.facility_id, t.recorded_at DESC
+    `);
+
+    for (const tel of telemetryRows.rows) {
+      const temp = parseFloat(tel.temperature);
+      const isExcursion = temp < 2.0 || temp > 8.0;
+
+      if (isExcursion) {
+        const breachType = temp > 8.0 ? 'Heat Excursion' : 'Freezing Hazard';
+        const msg = `CRITICAL COLD-CHAIN BREACH (${breachType}): Device ${tel.device_id} recorded ${temp.toFixed(1)}°C (Safe band: 2.0°C - 8.0°C). Immediate inspection required to protect potency of vaccines and insulin.`;
+
+        const existing = await query(
+          `SELECT id FROM alerts WHERE facility_id = $1 AND rule_code = 'TEMP_EXCURSION' AND open = true`,
+          [tel.facility_id]
+        );
+
+        if (existing.rows.length === 0) {
+          const ins = await query(
+            `INSERT INTO alerts (tenant_id, facility_id, sku_id, severity, rule_code, message, open)
+             VALUES ($1, $2, NULL, 'critical', 'TEMP_EXCURSION', $3, true)
+             RETURNING id`,
+            [tel.tenant_id, tel.facility_id, msg]
+          );
+          newAlertCount++;
+          syncAlertToFirestore({
+            id: ins.rows[0].id,
+            facilityId: tel.facility_id,
+            skuId: null,
+            severity: 'critical',
+            ruleCode: 'TEMP_EXCURSION',
+            message: msg,
+            open: true,
+          }).catch((err) => console.warn('[FirestoreAlertSync] Telemetry alert sync warning:', err.message));
+        }
+      } else {
+        // Temperature normalized, resolve any open TEMP_EXCURSION alerts
+        const resolved = await query(
+          `UPDATE alerts SET open = false WHERE facility_id = $1 AND rule_code = 'TEMP_EXCURSION' AND open = true RETURNING id` ,
+          [tel.facility_id]
+        );
+        for (const resRow of resolved.rows) {
+          syncAlertToFirestore({
+            id: resRow.id,
+            facilityId: tel.facility_id,
+            skuId: null,
+            severity: 'critical',
+            ruleCode: 'TEMP_EXCURSION',
+            message: 'Resolved: Cold-chain temperature restored within safe 2°C - 8°C range',
+            open: false,
+          }).catch((err) => console.warn('[FirestoreAlertSync] Warning:', err.message));
+        }
+      }
+    }
+  } catch (telErr: any) {
+    console.warn('[Alerts] Telemetry excursion check warning:', telErr.message);
+  }
+
   return newAlertCount;
 }
 

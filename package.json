@@ -7,11 +7,12 @@
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
-    "test": "tsx tests/money_path.test.ts && tsx tests/stage1_rbac_deny.test.ts && tsx tests/stage2_supply_chain.test.ts && tsx tests/stage3_emergency_federation.test.ts && tsx tests/stage4_compliance_offline.test.ts",
+    "test": "tsx tests/money_path.test.ts && tsx tests/stage1_rbac_deny.test.ts && tsx tests/stage2_supply_chain.test.ts && tsx tests/stage3_emergency_federation.test.ts && tsx tests/stage4_compliance_offline.test.ts && tsx tests/stage5_telemetry_coldchain.test.ts",
     "test:rbac": "tsx tests/stage1_rbac_deny.test.ts",
     "test:stage2": "tsx tests/stage2_supply_chain.test.ts",
     "test:stage3": "tsx tests/stage3_emergency_federation.test.ts",
     "test:stage4": "tsx tests/stage4_compliance_offline.test.ts",
+    "test:stage5": "tsx tests/stage5_telemetry_coldchain.test.ts",
     "seed:firestore": "tsx src/db/seedFirestore.ts",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"

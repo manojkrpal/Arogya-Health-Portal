@@ -14,6 +14,12 @@ import { explainTransferPlanWithGemini } from '../services/gemini.js';
 import { approveTransferOrder } from '../services/transfers.js';
 import { recomputeAlerts } from '../services/alerts.js';
 import {
+  getLiveTelemetry,
+  ingestTelemetry,
+  getExpiryRadar,
+  getDispatchRoutePlans,
+} from '../services/telemetry.js';
+import {
   adjustFirestoreStock,
   proposeFirestoreTransfer,
   approveFirestoreTransfer,
@@ -1472,4 +1478,226 @@ apiRouter.post('/offline/sync-batch', requireRole('phc_nurse', 'district_officer
     results,
   });
 });
+
+// ==========================================================
+// STAGE 5: TELEMETRY, EXPIRY RADAR & DISPATCH ROUTING API
+// ==========================================================
+
+/**
+ * GET /v1/telemetry/live
+ * Real-time IoT temperature sensor readings from cold-chain units.
+ * Denied to sovereign external roles (brics_analyst).
+ */
+apiRouter.get(
+  '/telemetry/live',
+  authenticateToken,
+  bricsSecurityCheck,
+  requireRole(['phc_nurse', 'district_officer', 'national_war_room', 'state_admin', 'procurement_officer', 'compliance_auditor']),
+  async (req: Request, res: Response) => {
+    try {
+      const data = await getLiveTelemetry();
+      res.json(data);
+    } catch (err: any) {
+      console.error('Error fetching live telemetry:', err);
+      res.status(500).json({ error: 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+);
+
+/**
+ * POST /v1/telemetry/ingest
+ * Ingest IoT temperature sensor reading, auto-evaluate excursion and update alerts.
+ */
+apiRouter.post(
+  '/telemetry/ingest',
+  authenticateToken,
+  bricsSecurityCheck,
+  requireRole(['phc_nurse', 'district_officer', 'national_war_room', 'state_admin']),
+  async (req: Request, res: Response) => {
+    const { facilityId, deviceId, temperature, batteryPct, doorOpen, powerSource } = req.body;
+    const reqId = (req as any).requestId || `iot_${Date.now()}`;
+
+    if (!facilityId || !deviceId || temperature === undefined) {
+      res.status(400).json({ error: 'BAD_REQUEST', message: 'facilityId, deviceId, and temperature are required' });
+      return;
+    }
+
+    try {
+      const result = await ingestTelemetry(
+        facilityId,
+        deviceId,
+        Number(temperature),
+        batteryPct !== undefined ? Number(batteryPct) : 95,
+        Boolean(doorOpen),
+        powerSource || 'solar_grid',
+        reqId
+      );
+
+      res.json({
+        success: true,
+        facilityId,
+        deviceId,
+        temperature: Number(temperature),
+        excursion: result.excursion,
+        newAlertsCount: result.newAlertsCount,
+      });
+    } catch (err: any) {
+      console.error('Error ingesting telemetry:', err);
+      res.status(500).json({ error: 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+);
+
+/**
+ * GET /v1/expiry/radar
+ * Expiry radar identifying lots nearing expiry with high-demand recipient suggestions.
+ */
+apiRouter.get(
+  '/expiry/radar',
+  authenticateToken,
+  bricsSecurityCheck,
+  requireRole(['phc_nurse', 'district_officer', 'national_war_room', 'state_admin', 'procurement_officer', 'compliance_auditor']),
+  async (req: Request, res: Response) => {
+    try {
+      const data = await getExpiryRadar();
+      res.json(data);
+    } catch (err: any) {
+      console.error('Error fetching expiry radar:', err);
+      res.status(500).json({ error: 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+);
+
+/**
+ * GET /v1/routes/dispatch-plan
+ * Real-time cold-chain vehicle routing with passive thermal window validation.
+ */
+apiRouter.get(
+  '/routes/dispatch-plan',
+  authenticateToken,
+  bricsSecurityCheck,
+  requireRole(['phc_nurse', 'district_officer', 'national_war_room', 'state_admin', 'procurement_officer', 'compliance_auditor']),
+  async (req: Request, res: Response) => {
+    try {
+      const plans = await getDispatchRoutePlans();
+      res.json({ success: true, count: plans.length, routes: plans });
+    } catch (err: any) {
+      console.error('Error fetching dispatch plans:', err);
+      res.status(500).json({ error: 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+);
+
+/**
+ * POST /v1/routes/dispatch-action
+ * Update transfer order dispatch status ('in_transit' or 'completed') with thermal logging.
+ */
+apiRouter.post(
+  '/routes/dispatch-action',
+  authenticateToken,
+  bricsSecurityCheck,
+  requireRole(['phc_nurse', 'district_officer', 'national_war_room']),
+  async (req: Request, res: Response) => {
+    const user = (req as any).user as TokenPayload;
+    const reqId = (req as any).requestId;
+    const { transferId, action, sealTemperature, receiptTemperature } = req.body;
+
+    if (!transferId || !['start_dispatch', 'complete_delivery'].includes(action)) {
+      res.status(400).json({ error: 'BAD_REQUEST', message: 'transferId and valid action (start_dispatch|complete_delivery) required' });
+      return;
+    }
+
+    try {
+      const tRes = await query(`SELECT * FROM transfer_orders WHERE id = $1`, [transferId]);
+      if (tRes.rows.length === 0) {
+        res.status(404).json({ error: 'NOT_FOUND', message: 'Transfer order not found' });
+        return;
+      }
+      const order = tRes.rows[0];
+
+      if (action === 'start_dispatch') {
+        if (order.status !== 'approved') {
+          res.status(400).json({ error: 'INVALID_STATUS', message: 'Only approved orders can be dispatched' });
+          return;
+        }
+
+        await query(`UPDATE transfer_orders SET status = 'in_transit' WHERE id = $1`, [transferId]);
+
+        await query(
+          `INSERT INTO audit_events (actor_id, action, entity, entity_id, payload, request_id)
+           VALUES ($1, 'TRANSFER_DISPATCHED', 'transfer_orders', $2, $3, $4)`,
+          [
+            user.userId,
+            transferId,
+            JSON.stringify({
+              fromFacility: order.from_facility,
+              toFacility: order.to_facility,
+              skuId: order.sku_id,
+              qty: order.qty,
+              sealTemperature: sealTemperature || 4.2,
+              status: 'in_transit',
+            }),
+            reqId,
+          ]
+        );
+
+        res.json({ success: true, transferId, status: 'in_transit', sealTemperature: sealTemperature || 4.2 });
+      } else if (action === 'complete_delivery') {
+        if (order.status !== 'in_transit' && order.status !== 'approved') {
+          res.status(400).json({ error: 'INVALID_STATUS', message: 'Order must be in transit or approved to complete' });
+          return;
+        }
+
+        await query(`UPDATE transfer_orders SET status = 'completed' WHERE id = $1`, [transferId]);
+
+        // Adjust stock on hand at recipient facility
+        await query(
+          `INSERT INTO stock_on_hand (facility_id, sku_id, qty, reorder_point)
+           VALUES ($1, $2, $3, 50)
+           ON CONFLICT (facility_id, sku_id)
+           DO UPDATE SET qty = stock_on_hand.qty + EXCLUDED.qty, updated_at = NOW()`,
+          [order.to_facility, order.sku_id, order.qty]
+        );
+
+        // Add lot at recipient facility
+        await query(
+          `INSERT INTO stock_lots (facility_id, sku_id, qty, expires_on)
+           VALUES ($1, $2, $3, CURRENT_DATE + INTERVAL '60 days')`,
+          [order.to_facility, order.sku_id, order.qty]
+        );
+
+        await query(
+          `INSERT INTO audit_events (actor_id, action, entity, entity_id, payload, request_id)
+           VALUES ($1, 'TRANSFER_COMPLETED', 'transfer_orders', $2, $3, $4)`,
+          [
+            user.userId,
+            transferId,
+            JSON.stringify({
+              fromFacility: order.from_facility,
+              toFacility: order.to_facility,
+              skuId: order.sku_id,
+              qty: order.qty,
+              receiptTemperature: receiptTemperature || 4.5,
+              status: 'completed',
+            }),
+            reqId,
+          ]
+        );
+
+        // Recompute alerts
+        await recomputeAlerts();
+
+        res.json({
+          success: true,
+          transferId,
+          status: 'completed',
+          receiptTemperature: receiptTemperature || 4.5,
+        });
+      }
+    } catch (err: any) {
+      console.error('Error handling dispatch action:', err);
+      res.status(500).json({ error: 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+);
 

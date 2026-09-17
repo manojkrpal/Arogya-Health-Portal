@@ -94,6 +94,29 @@ export async function initDb(): Promise<void> {
     await applySchemaAndSeed();
   } else {
     console.log('[DB] Cloud SQL schema and tables managed via Drizzle.');
+    // Ensure table cold_chain_telemetry exists
+    try {
+      const client = await pgPool!.connect();
+      try {
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS cold_chain_telemetry (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            facility_id UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
+            device_id VARCHAR(64) NOT NULL,
+            temperature NUMERIC(4,1) NOT NULL,
+            battery_pct INT NOT NULL DEFAULT 100 CHECK (battery_pct BETWEEN 0 AND 100),
+            power_source VARCHAR(32) NOT NULL DEFAULT 'solar_grid',
+            door_open BOOLEAN NOT NULL DEFAULT false,
+            recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS idx_telemetry_facility_time ON cold_chain_telemetry(facility_id, recorded_at DESC);
+        `);
+      } finally {
+        client.release();
+      }
+    } catch (e: any) {
+      console.warn('[DB] Non-blocking cold_chain_telemetry check:', e.message);
+    }
   }
   isInitialized = true;
 }

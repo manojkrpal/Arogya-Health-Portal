@@ -128,16 +128,17 @@ export function bricsSecurityCheck(req: Request, res: Response, next: NextFuncti
   next();
 }
 
-export function requireRole(...allowedRoles: string[]) {
+export function requireRole(...allowedRoles: (string | string[])[]) {
+  const flattenedRoles = allowedRoles.flat();
   return (req: Request, res: Response, next: NextFunction): void => {
     const user = (req as any).user as TokenPayload | undefined;
     const requestId = (req as any).requestId || 'req_unknown';
 
-    if (!user || !allowedRoles.includes(user.role)) {
+    if (!user || !flattenedRoles.includes(user.role)) {
       res.status(403).json({
         error: {
           code: 'FORBIDDEN_ROLE',
-          message: `Action requires one of: ${allowedRoles.join(', ')}. Current role: ${user?.role || 'none'}`,
+          message: `Action requires one of: ${flattenedRoles.join(', ')}. Current role: ${user?.role || 'none'}`,
           request_id: requestId,
         },
       });

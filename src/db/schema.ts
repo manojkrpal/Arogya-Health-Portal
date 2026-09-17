@@ -271,6 +271,20 @@ export const federationModelCards = pgTable('federation_model_cards', {
   appliedAt: timestamp('applied_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// 17. Cold Chain Telemetry
+export const coldChainTelemetry = pgTable('cold_chain_telemetry', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  facilityId: uuid('facility_id')
+    .notNull()
+    .references(() => facilities.id, { onDelete: 'cascade' }),
+  deviceId: varchar('device_id', { length: 64 }).notNull(),
+  temperature: doublePrecision('temperature').notNull(),
+  batteryPct: integer('battery_pct').notNull().default(95),
+  doorOpen: boolean('door_open').notNull().default(false),
+  powerSource: varchar('power_source', { length: 32 }).notNull().default('solar_grid'),
+  recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 // Relations
 export const tenantsRelations = relations(tenants, ({ many }) => ({
   facilities: many(facilities),

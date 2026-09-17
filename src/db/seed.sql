@@ -149,3 +149,10 @@ ON CONFLICT (tenant_id, sku_id, day) DO NOTHING;
 INSERT INTO federation_model_cards (version, prior_name, notes) VALUES
 ('brics-ess-v1.2', 'Bayesian Hierarchical Outbreak Prior (National + State + District)', 'Federated parameter averaging across sovereign health authorities. No individual health record or facility identifier leaves national boundaries.')
 ON CONFLICT DO NOTHING;
+
+-- 17. Cold Chain IoT Telemetry Seed
+INSERT INTO cold_chain_telemetry (facility_id, device_id, temperature, battery_pct, power_source, door_open, recorded_at) VALUES
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'ILR-SHIRUR-01', 4.3, 98, 'solar_grid', false, NOW() - INTERVAL '2 minutes'),
+('cccccccc-cccc-cccc-cccc-cccccccccccc', 'ILR-MANCHAR-01', 3.8, 100, 'grid', false, NOW() - INTERVAL '5 minutes'),
+('dddddddd-dddd-dddd-dddd-dddddddddddd', 'WIC-BARAMATI-01', 4.1, 95, 'generator_backup', false, NOW() - INTERVAL '1 minute')
+ON CONFLICT DO NOTHING;

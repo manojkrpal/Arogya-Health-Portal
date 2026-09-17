@@ -9,6 +9,7 @@ import { TransfersView } from './components/TransfersView.js';
 import { FederationView } from './components/FederationView.js';
 import { StockView } from './components/StockView.js';
 import { AuditView } from './components/AuditView.js';
+import { ColdChainView } from './components/ColdChainView.js';
 import {
   FacilitySnapshot,
   AlertItem,
@@ -164,6 +165,12 @@ function ArogyaNetApp() {
             onRefresh={refreshData}
             isLoading={isLoading}
           />
+        )}
+
+        {activeTab === 'coldchain' && user?.role !== 'brics_analyst' && (
+          <div className="max-w-6xl mx-auto p-3 sm:p-6">
+            <ColdChainView />
+          </div>
         )}
 
         {activeTab === 'federation' && (

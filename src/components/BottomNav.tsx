@@ -8,9 +8,10 @@ import {
   Globe2,
   Lock,
   ShieldCheck,
+  Thermometer,
 } from 'lucide-react';
 
-export type TabType = 'map' | 'alerts' | 'stock' | 'transfers' | 'federation' | 'audit';
+export type TabType = 'map' | 'alerts' | 'stock' | 'transfers' | 'coldchain' | 'federation' | 'audit';
 
 interface BottomNavProps {
   activeTab: TabType;
@@ -35,6 +36,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     { id: 'alerts', label: 'Alerts', icon: Bell, badge: alertCount, restrictedForBrics: true, hideForAuditor: false },
     { id: 'stock', label: 'Stock', icon: Package, restrictedForBrics: true, hideForAuditor: false },
     { id: 'transfers', label: 'Transfers', icon: ArrowLeftRight, badge: transferCount, restrictedForBrics: true, hideForAuditor: false },
+    { id: 'coldchain', label: 'Cold-Chain', icon: Thermometer, restrictedForBrics: true, hideForAuditor: false },
     { id: 'audit', label: 'Audit', icon: ShieldCheck, restrictedForBrics: true, hideForAuditor: false, showOnlyFor: canViewAudit },
     { id: 'federation', label: 'BRICS', icon: Globe2, restrictedForBrics: false, hideForAuditor: false },
   ];
