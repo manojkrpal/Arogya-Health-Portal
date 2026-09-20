@@ -2,6 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext.js';
 import { LANGUAGE_OPTIONS, Language } from '../lib/i18n.js';
 import {
+  parseClinicalIntent,
+  CLINICAL_DISEASE_REGISTRY,
+  ClinicalConditionMapping,
+} from '../services/clinicalKnowledge.js';
+import {
   Mic,
   MicOff,
   Volume2,
@@ -13,6 +18,9 @@ import {
   ArrowRight,
   RotateCcw,
   VolumeX,
+  Activity,
+  HeartPulse,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface VoiceNurseAssistantModalProps {
@@ -21,7 +29,7 @@ interface VoiceNurseAssistantModalProps {
 }
 
 interface ParsedVoiceIntent {
-  action: 'ADD_STOCK' | 'DEDUCT_STOCK' | 'CHECK_EXPIRY' | 'EMERGENCY_ORDER';
+  action: 'ADD_STOCK' | 'DEDUCT_STOCK' | 'CLINICAL_DISPENSE';
   facilityId: string;
   facilityName: string;
   skuCode: string;
@@ -29,140 +37,272 @@ interface ParsedVoiceIntent {
   deltaQty: number;
   rawTranscript: string;
   confidence: number;
+  conditionName?: string;
+  urgencyLevel?: 'routine' | 'urgent' | 'emergency';
 }
 
 const VOICE_PRESETS: Record<Language, Array<{ label: string; text: string; parsed: ParsedVoiceIntent }>> = {
   en: [
     {
-      label: 'Add 50 Paracetamol to Shirur PHC',
-      text: 'Add 50 bottles of Paracetamol 500mg tablets to Shirur PHC stock inventory.',
+      label: 'Emergency: Dog bite patient requires Anti-Rabies Vaccine at Shirur PHC',
+      text: 'Dispense 5 vials of Anti-Rabies Vaccine for stray dog bite emergency at Shirur PHC.',
       parsed: {
-        action: 'ADD_STOCK',
-        facilityId: 'shirur-phc',
-        facilityName: 'Shirur PHC (Pune)',
-        skuCode: 'PAR-500',
-        skuName: 'Paracetamol 500mg Tabs',
-        deltaQty: 50,
-        rawTranscript: 'Add 50 bottles of Paracetamol 500mg tablets to Shirur PHC stock inventory.',
+        action: 'CLINICAL_DISPENSE',
+        facilityId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        facilityName: 'Shirur PHC (Pune Rural)',
+        skuCode: 'RAB-VAX',
+        skuName: 'Anti-Rabies Vaccine 0.5ml (Cold Chain)',
+        deltaQty: -5,
+        rawTranscript: 'Dispense 5 vials of Anti-Rabies Vaccine for stray dog bite emergency at Shirur PHC.',
         confidence: 0.98,
+        conditionName: 'Animal / Dog Bite & Rabies Prophylaxis',
+        urgencyLevel: 'emergency',
       },
     },
     {
-      label: 'Deduct 20 ORS Packets (Used during flood surge)',
-      text: 'Deduct 20 packets of WHO Oral Rehydration Salts at Shirur dispensary bay.',
+      label: 'Dehydration Surge: Deduct 25 WHO ORS Packets at Shirur dispensary',
+      text: 'Deduct 25 packets of WHO Oral Rehydration Salts for acute diarrhea patients at Shirur.',
       parsed: {
         action: 'DEDUCT_STOCK',
-        facilityId: 'shirur-phc',
-        facilityName: 'Shirur PHC (Pune)',
-        skuCode: 'ORS-001',
-        skuName: 'Oral Rehydration Salts WHO',
-        deltaQty: -20,
-        rawTranscript: 'Deduct 20 packets of WHO Oral Rehydration Salts at Shirur dispensary bay.',
-        confidence: 0.96,
+        facilityId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        facilityName: 'Shirur PHC (Pune Rural)',
+        skuCode: 'ORS-20.5G',
+        skuName: 'Oral Rehydration Salts (ORS) 20.5g',
+        deltaQty: -25,
+        rawTranscript: 'Deduct 25 packets of WHO Oral Rehydration Salts for acute diarrhea patients at Shirur.',
+        confidence: 0.97,
+        conditionName: 'Acute Diarrheal Disease / Cholera / Severe Dehydration',
+        urgencyLevel: 'urgent',
       },
     },
     {
-      label: 'Add 30 Artesunate Injections to Manchar CHC',
-      text: 'Record delivery of 30 vials of Artesunate 60mg at Manchar Community Health Centre.',
+      label: 'Diabetes Crisis: Dispense 10 vials of Regular Insulin at Manchar CHC',
+      text: 'Dispense 10 vials of Regular Insulin 40IU for high sugar diabetic patient at Manchar CHC.',
+      parsed: {
+        action: 'CLINICAL_DISPENSE',
+        facilityId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        facilityName: 'Manchar CHC (Pune Rural)',
+        skuCode: 'INS-REG-40',
+        skuName: 'Regular Insulin 40 IU/ml (Cold Chain)',
+        deltaQty: -10,
+        rawTranscript: 'Dispense 10 vials of Regular Insulin 40IU for high sugar diabetic patient at Manchar CHC.',
+        confidence: 0.98,
+        conditionName: 'Diabetes Mellitus / Hyperglycemia Crisis',
+        urgencyLevel: 'urgent',
+      },
+    },
+    {
+      label: 'Snakebite Emergency: Administer Anti-Snake Venom at Baramati SDH',
+      text: 'Administer 10 vials of Polyvalent Anti-Snake Venom for venomous bite at Baramati Hospital.',
+      parsed: {
+        action: 'CLINICAL_DISPENSE',
+        facilityId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+        facilityName: 'Baramati Sub-District Hospital',
+        skuCode: 'ASV-10ML',
+        skuName: 'Polyvalent Anti-Snake Venom 10ml',
+        deltaQty: -10,
+        rawTranscript: 'Administer 10 vials of Polyvalent Anti-Snake Venom for venomous bite at Baramati Hospital.',
+        confidence: 0.99,
+        conditionName: 'Ophitoxaemia / Snake Envenomation',
+        urgencyLevel: 'emergency',
+      },
+    },
+    {
+      label: 'Pneumonia Outbreak: Add 40 Amoxicillin strips to Shirur stock',
+      text: 'Add 40 strips of Amoxicillin 500mg capsules for bacterial chest infection at Shirur PHC.',
       parsed: {
         action: 'ADD_STOCK',
-        facilityId: 'manchar-chc',
-        facilityName: 'Manchar CHC (Pune)',
-        skuCode: 'ART-060',
-        skuName: 'Artesunate Injection 60mg',
-        deltaQty: 30,
-        rawTranscript: 'Record delivery of 30 vials of Artesunate 60mg at Manchar Community Health Centre.',
-        confidence: 0.97,
+        facilityId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        facilityName: 'Shirur PHC (Pune Rural)',
+        skuCode: 'AMOX-500',
+        skuName: 'Amoxicillin Capsules 500mg',
+        deltaQty: 40,
+        rawTranscript: 'Add 40 strips of Amoxicillin 500mg capsules for bacterial chest infection at Shirur PHC.',
+        confidence: 0.96,
+        conditionName: 'Bacterial Pneumonia / Acute Respiratory Infection',
+        urgencyLevel: 'urgent',
+      },
+    },
+    {
+      label: 'Maternal Delivery: Record 15 Oxytocin injections at Manchar CHC',
+      text: 'Record use of 15 ampoules of Oxytocin 10IU for labor room deliveries at Manchar CHC.',
+      parsed: {
+        action: 'CLINICAL_DISPENSE',
+        facilityId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        facilityName: 'Manchar CHC (Pune Rural)',
+        skuCode: 'OXY-10',
+        skuName: 'Oxytocin Injection 10 IU/ml',
+        deltaQty: -15,
+        rawTranscript: 'Record use of 15 ampoules of Oxytocin 10IU for labor room deliveries at Manchar CHC.',
+        confidence: 0.98,
+        conditionName: 'Postpartum Hemorrhage / Maternal Delivery',
+        urgencyLevel: 'emergency',
       },
     },
   ],
   hi: [
     {
-      label: 'शिरूर पीएचसी में 50 पैरासिटामोल जोड़ें',
-      text: 'शिरूर प्राथमिक स्वास्थ्य केंद्र के स्टॉक में 50 पैरासिटामोल गोलियां जोड़ें।',
+      label: 'आपातकाल: कुत्ते के काटने पर 5 रैबीज वैक्सीन (शिरूर पीएचसी)',
+      text: 'शिरूर प्राथमिक स्वास्थ्य केंद्र में कुत्ते के काटने के मरीज के लिए 5 एंटी-रेबीज वैक्सीन दें।',
       parsed: {
-        action: 'ADD_STOCK',
-        facilityId: 'shirur-phc',
-        facilityName: 'Shirur PHC (Pune)',
-        skuCode: 'PAR-500',
-        skuName: 'Paracetamol 500mg Tabs',
-        deltaQty: 50,
-        rawTranscript: 'शिरूर प्राथमिक स्वास्थ्य केंद्र के स्टॉक में 50 पैरासिटामोल गोलियां जोड़ें।',
+        action: 'CLINICAL_DISPENSE',
+        facilityId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        facilityName: 'Shirur PHC (Pune Rural)',
+        skuCode: 'RAB-VAX',
+        skuName: 'Anti-Rabies Vaccine 0.5ml (Cold Chain)',
+        deltaQty: -5,
+        rawTranscript: 'शिरूर प्राथमिक स्वास्थ्य केंद्र में कुत्ते के काटने के मरीज के लिए 5 एंटी-रेबीज वैक्सीन दें।',
         confidence: 0.98,
+        conditionName: 'Animal / Dog Bite & Rabies Prophylaxis',
+        urgencyLevel: 'emergency',
       },
     },
     {
-      label: 'शिरूर में 20 ओआरएस पैकेट घटाएं',
-      text: 'शिरूर डिस्पेंसरी से 20 डब्ल्यूएचओ ओआरएस पैकेट घटाएं।',
+      label: 'सर्पदंश: बारामती अस्पताल में 10 एंटी-स्नेक वेनम दें',
+      text: 'बारामती उप-जिला अस्पताल में सर्पदंश पीड़ित के लिए 10 शीशियां एंटी-स्नेक वेनम निकालें।',
+      parsed: {
+        action: 'CLINICAL_DISPENSE',
+        facilityId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+        facilityName: 'Baramati Sub-District Hospital',
+        skuCode: 'ASV-10ML',
+        skuName: 'Polyvalent Anti-Snake Venom 10ml',
+        deltaQty: -10,
+        rawTranscript: 'बारामती उप-जिला अस्पताल में सर्पदंश पीड़ित के लिए 10 शीशियां एंटी-स्नेक वेनम निकालें।',
+        confidence: 0.99,
+        conditionName: 'Ophitoxaemia / Snake Envenomation',
+        urgencyLevel: 'emergency',
+      },
+    },
+    {
+      label: 'मधुमेह: मंचर में 10 इंसुलिन शीशियां वितरित करें',
+      text: 'मंचर सीएचसी में हाई शुगर डायबिटीज के मरीज को 10 इंसुलिन शीशियां दें।',
+      parsed: {
+        action: 'CLINICAL_DISPENSE',
+        facilityId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        facilityName: 'Manchar CHC (Pune Rural)',
+        skuCode: 'INS-REG-40',
+        skuName: 'Regular Insulin 40 IU/ml (Cold Chain)',
+        deltaQty: -10,
+        rawTranscript: 'मंचर सीएचसी में हाई शुगर डायबिटीज के मरीज को 10 इंसुलिन शीशियां दें।',
+        confidence: 0.98,
+        conditionName: 'Diabetes Mellitus / Hyperglycemia Crisis',
+        urgencyLevel: 'urgent',
+      },
+    },
+    {
+      label: 'दस्त एवं निर्जलीकरण: 25 ओआरएस पैकेट घटाएं',
+      text: 'शिरूर में उल्टी दस्त और निर्जलीकरण के रोगियों हेतु 25 ओआरएस पैकेट घटाएं।',
       parsed: {
         action: 'DEDUCT_STOCK',
-        facilityId: 'shirur-phc',
-        facilityName: 'Shirur PHC (Pune)',
-        skuCode: 'ORS-001',
-        skuName: 'Oral Rehydration Salts WHO',
-        deltaQty: -20,
-        rawTranscript: 'शिरूर डिस्पेंसरी से 20 डब्ल्यूएचओ ओआरएस पैकेट घटाएं।',
-        confidence: 0.95,
+        facilityId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        facilityName: 'Shirur PHC (Pune Rural)',
+        skuCode: 'ORS-20.5G',
+        skuName: 'Oral Rehydration Salts (ORS) 20.5g',
+        deltaQty: -25,
+        rawTranscript: 'शिरूर में उल्टी दस्त और निर्जलीकरण के रोगियों हेतु 25 ओआरएस पैकेट घटाएं।',
+        confidence: 0.97,
+        conditionName: 'Acute Diarrheal Disease / Cholera / Severe Dehydration',
+        urgencyLevel: 'urgent',
       },
     },
   ],
   mr: [
     {
-      label: 'शिरूर प्राथमिक आरोग्य केंद्रात 50 पॅरासिटामॉल जोडा',
-      text: 'शिरूर प्राथमिक आरोग्य केंद्रात 50 पॅरासिटामॉल गोळ्या साठ्यात नोंदवा.',
+      label: 'तातडी: कुत्र्याने चावल्यामुळे ५ अँटी-रेबीज लस (शिरूर पीएचसी)',
+      text: 'शिरूर प्राथमिक आरोग्य केंद्रात कुत्रा चावलेल्या रुग्णासाठी ५ अँटी-रेबीज लस द्या.',
       parsed: {
-        action: 'ADD_STOCK',
-        facilityId: 'shirur-phc',
-        facilityName: 'Shirur PHC (Pune)',
-        skuCode: 'PAR-500',
-        skuName: 'Paracetamol 500mg Tabs',
-        deltaQty: 50,
-        rawTranscript: 'शिरूर प्राथमिक आरोग्य केंद्रात 50 पॅरासिटामॉल गोळ्या साठ्यात नोंदवा.',
+        action: 'CLINICAL_DISPENSE',
+        facilityId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        facilityName: 'Shirur PHC (Pune Rural)',
+        skuCode: 'RAB-VAX',
+        skuName: 'Anti-Rabies Vaccine 0.5ml (Cold Chain)',
+        deltaQty: -5,
+        rawTranscript: 'शिरूर प्राथमिक आरोग्य केंद्रात कुत्रा चावलेल्या रुग्णासाठी ५ अँटी-रेबीज लस द्या.',
         confidence: 0.98,
+        conditionName: 'Animal / Dog Bite & Rabies Prophylaxis',
+        urgencyLevel: 'emergency',
       },
     },
     {
-      label: 'मंचर सीएचसीमध्ये 30 आर्टिस्युनेट इंजेक्शन्स जोडा',
-      text: 'मंचर ग्रामीण रुग्णालयात 30 आर्टिस्युनेट इंजेक्शन साठ्यात वाढवा.',
+      label: 'सर्पदंश: बारामती रुग्णालयात १० अँटी स्नेक व्हेनम नोंदवा',
+      text: 'बारामती रुग्णालयात सर्पदंश रुग्णासाठी १० अँटी स्नेक व्हेनम साठ्यातून वापरा.',
       parsed: {
-        action: 'ADD_STOCK',
-        facilityId: 'manchar-chc',
-        facilityName: 'Manchar CHC (Pune)',
-        skuCode: 'ART-060',
-        skuName: 'Artesunate Injection 60mg',
-        deltaQty: 30,
-        rawTranscript: 'मंचर ग्रामीण रुग्णालयात 30 आर्टिस्युनेट इंजेक्शन साठ्यात वाढवा.',
+        action: 'CLINICAL_DISPENSE',
+        facilityId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+        facilityName: 'Baramati Sub-District Hospital',
+        skuCode: 'ASV-10ML',
+        skuName: 'Polyvalent Anti-Snake Venom 10ml',
+        deltaQty: -10,
+        rawTranscript: 'बारामती रुग्णालयात सर्पदंश रुग्णासाठी १० अँटी स्नेक व्हेनम साठ्यातून वापरा.',
+        confidence: 0.99,
+        conditionName: 'Ophitoxaemia / Snake Envenomation',
+        urgencyLevel: 'emergency',
+      },
+    },
+    {
+      label: 'प्रसूती: मंचरमध्ये १५ ऑक्सिटोसिन इंजेक्शन्स वापरा',
+      text: 'मंचर ग्रामीण रुग्णालयात प्रसूती कक्षासाठी १५ ऑक्सिटोसिन इंजेक्शन नोंदवा.',
+      parsed: {
+        action: 'CLINICAL_DISPENSE',
+        facilityId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        facilityName: 'Manchar CHC (Pune Rural)',
+        skuCode: 'OXY-10',
+        skuName: 'Oxytocin Injection 10 IU/ml',
+        deltaQty: -15,
+        rawTranscript: 'मंचर ग्रामीण रुग्णालयात प्रसूती कक्षासाठी १५ ऑक्सिटोसिन इंजेक्शन नोंदवा.',
         confidence: 0.97,
+        conditionName: 'Postpartum Hemorrhage / Maternal Delivery',
+        urgencyLevel: 'emergency',
       },
     },
   ],
   bn: [
     {
-      label: 'শিরুর পিএইচসিতে ৫০টি প্যারাসিটামল যোগ করুন',
-      text: 'শিরুর প্রাথমিক স্বাস্থ্যকেন্দ্রের স্টকে ৫০টি প্যারাসিটামল ট্যাবলেট যোগ করুন।',
+      label: 'জরুরি: কুকুরের কামড়ে ৫টি জলাতঙ্কের ভ্যাকসিন দিন (শিরুর পিএইচসি)',
+      text: 'শিরুর প্রাথমিক স্বাস্থ্যকেন্দ্রে কুকুরের কামড়ের রোগীর জন্য ৫টি জলাতঙ্কের ভ্যাকসিন দিন।',
       parsed: {
-        action: 'ADD_STOCK',
-        facilityId: 'shirur-phc',
-        facilityName: 'Shirur PHC (Pune)',
-        skuCode: 'PAR-500',
-        skuName: 'Paracetamol 500mg Tabs',
-        deltaQty: 50,
-        rawTranscript: 'শিরুর প্রাথমিক স্বাস্থ্যকেন্দ্রের স্টকে ৫০টি প্যারাসিটামল ট্যাবলেট যোগ করুন।',
+        action: 'CLINICAL_DISPENSE',
+        facilityId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        facilityName: 'Shirur PHC (Pune Rural)',
+        skuCode: 'RAB-VAX',
+        skuName: 'Anti-Rabies Vaccine 0.5ml (Cold Chain)',
+        deltaQty: -5,
+        rawTranscript: 'শিরুর প্রাথমিক স্বাস্থ্যকেন্দ্রে কুকুরের কামড়ের রোগীর জন্য ৫টি জলাতঙ্কের ভ্যাকসিন দিন।',
         confidence: 0.98,
+        conditionName: 'Animal / Dog Bite & Rabies Prophylaxis',
+        urgencyLevel: 'emergency',
       },
     },
     {
-      label: 'শিরুর ডিসপেনসারিতে ২০টি ওআরএস কমান',
-      text: 'শিরুর ডিসপেনসারি থেকে ২০টি ওআরএস প্যাকেট বিয়োগ করুন।',
+      label: 'ডায়াবেটিস: মাঞ্চার সিএইচসিতে ১০টি ইনসুলিন প্রদান করুন',
+      text: 'মাঞ্চার সিএইচসিতে ডায়াবেটিস রোগীর জন্য ১০ ভায়াল ইনসুলিন প্রদান করুন।',
       parsed: {
-        action: 'DEDUCT_STOCK',
-        facilityId: 'shirur-phc',
-        facilityName: 'Shirur PHC (Pune)',
-        skuCode: 'ORS-001',
-        skuName: 'Oral Rehydration Salts WHO',
-        deltaQty: -20,
-        rawTranscript: 'শিরুর ডিসপেনসারি থেকে ২০টি ওআরএস প্যাকেট বিয়োগ করুন।',
-        confidence: 0.96,
+        action: 'CLINICAL_DISPENSE',
+        facilityId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        facilityName: 'Manchar CHC (Pune Rural)',
+        skuCode: 'INS-REG-40',
+        skuName: 'Regular Insulin 40 IU/ml (Cold Chain)',
+        deltaQty: -10,
+        rawTranscript: 'মাঞ্চার সিএইচসিতে ডায়াবেটিস রোগীর জন্য ১০ ভায়াল ইনসুলিন প্রদান করুন।',
+        confidence: 0.97,
+        conditionName: 'Diabetes Mellitus / Hyperglycemia Crisis',
+        urgencyLevel: 'urgent',
+      },
+    },
+    {
+      label: 'সর্পাঘাত: বারামতি হাসপাতালে ১০টি অ্যান্টি-ভেনম দিন',
+      text: 'বারামতি হাসপাতালে সাপে কাটা রোগীর জন্য ১০টি অ্যান্টি-ভেনম ব্যবহার করুন।',
+      parsed: {
+        action: 'CLINICAL_DISPENSE',
+        facilityId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+        facilityName: 'Baramati Sub-District Hospital',
+        skuCode: 'ASV-10ML',
+        skuName: 'Polyvalent Anti-Snake Venom 10ml',
+        deltaQty: -10,
+        rawTranscript: 'বারামতি হাসপাতালে সাপে কাটা রোগীর জন্য ১০টি অ্যান্টি-ভেনম ব্যবহার করুন।',
+        confidence: 0.99,
+        conditionName: 'Ophitoxaemia / Snake Envenomation',
+        urgencyLevel: 'emergency',
       },
     },
   ],
@@ -248,7 +388,6 @@ export const VoiceNurseAssistantModal: React.FC<VoiceNurseAssistantModalProps> =
             lang === 'hi' ? 'hi-IN' : lang === 'mr' ? 'mr-IN' : lang === 'bn' ? 'bn-IN' : 'en-IN';
           recognitionRef.current.start();
         } catch (e) {
-          // If already running or permission blocked, simulate immediate listening state
           setIsListening(true);
         }
       } else {
@@ -266,54 +405,20 @@ export const VoiceNurseAssistantModal: React.FC<VoiceNurseAssistantModalProps> =
   };
 
   const parseVoiceTranscript = (text: string) => {
-    const lower = text.toLowerCase();
-    let action: 'ADD_STOCK' | 'DEDUCT_STOCK' = 'ADD_STOCK';
-    if (lower.includes('deduct') || lower.includes('use') || lower.includes('remove') || lower.includes('घटाएं') || lower.includes('कमी') || lower.includes('বিয়োগ')) {
-      action = 'DEDUCT_STOCK';
-    }
-
-    let deltaQty = 50;
-    const numMatch = text.match(/\d+/);
-    if (numMatch) {
-      deltaQty = parseInt(numMatch[0], 10);
-      if (action === 'DEDUCT_STOCK') deltaQty = -deltaQty;
-    }
-
-    let skuCode = 'PAR-500';
-    let skuName = 'Paracetamol 500mg Tabs';
-    if (lower.includes('ors') || lower.includes('ओआरएस') || lower.includes('ওআরএস')) {
-      skuCode = 'ORS-001';
-      skuName = 'Oral Rehydration Salts WHO';
-    } else if (lower.includes('artesunate') || lower.includes('आर्टिस्युनेट') || lower.includes('আর্টেসুনেট')) {
-      skuCode = 'ART-060';
-      skuName = 'Artesunate Injection 60mg';
-    } else if (lower.includes('insulin') || lower.includes('इंसुलिन') || lower.includes('ইনসুলিন')) {
-      skuCode = 'INS-NPH';
-      skuName = 'Human Insulin NPH 100IU';
-    } else if (lower.includes('saline') || lower.includes('सलाइन') || lower.includes('স্যালাইন')) {
-      skuCode = 'IV-NS500';
-      skuName = 'Normal Saline IV 500ml';
-    }
-
-    let facilityId = 'shirur-phc';
-    let facilityName = 'Shirur PHC (Pune)';
-    if (lower.includes('manchar') || lower.includes('मंचर') || lower.includes('মাঞ্চার')) {
-      facilityId = 'manchar-chc';
-      facilityName = 'Manchar CHC (Pune)';
-    } else if (lower.includes('daund') || lower.includes('दौंड') || lower.includes('দাউন্ড')) {
-      facilityId = 'daund-sdh';
-      facilityName = 'Daund Sub-District Hospital';
-    }
+    // Dynamically evaluate text using clinical disease ontology
+    const clinicalResult = parseClinicalIntent(text, lang);
 
     const parsed: ParsedVoiceIntent = {
-      action,
-      facilityId,
-      facilityName,
-      skuCode,
-      skuName,
-      deltaQty,
+      action: clinicalResult.action,
+      facilityId: clinicalResult.facilityId,
+      facilityName: clinicalResult.facilityName,
+      skuCode: clinicalResult.skuCode,
+      skuName: clinicalResult.skuName,
+      deltaQty: clinicalResult.deltaQty,
       rawTranscript: text,
-      confidence: 0.96,
+      confidence: clinicalResult.confidence,
+      conditionName: clinicalResult.matchedCondition.conditionName,
+      urgencyLevel: clinicalResult.matchedCondition.urgencyLevel,
     };
 
     setParsedIntent(parsed);
@@ -330,14 +435,19 @@ export const VoiceNurseAssistantModal: React.FC<VoiceNurseAssistantModalProps> =
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       let spokenText = '';
+      const actionVerbEn = intent.deltaQty > 0 ? 'Add' : intent.action === 'CLINICAL_DISPENSE' ? 'Dispense for patient care' : 'Deduct';
+      const actionVerbHi = intent.deltaQty > 0 ? 'जोड़ने' : 'वितरित करने';
+      const actionVerbMr = intent.deltaQty > 0 ? 'जोडण्याची' : 'देण्याची';
+      const actionVerbBn = intent.deltaQty > 0 ? 'যোগ' : 'বিতরণ';
+
       if (lang === 'hi') {
-        spokenText = `पुष्टि: ${intent.facilityName} में ${Math.abs(intent.deltaQty)} ${intent.skuName} ${intent.deltaQty > 0 ? 'जोड़ने' : 'घटाने'} का अनुरोध पहचाना गया।`;
+        spokenText = `पहचाना गया: ${intent.conditionName ? intent.conditionName + ' हेतु ' : ''}${intent.facilityName} में ${Math.abs(intent.deltaQty)} इकाई ${intent.skuName} ${actionVerbHi} का अनुरोध।`;
       } else if (lang === 'mr') {
-        spokenText = `पुष्टी: ${intent.facilityName} मध्ये ${Math.abs(intent.deltaQty)} ${intent.skuName} ${intent.deltaQty > 0 ? 'जोडण्याची' : 'कमी करण्याची'} विनंती ओळखली आहे.`;
+        spokenText = `ओळखले: ${intent.conditionName ? intent.conditionName + ' साठी ' : ''}${intent.facilityName} मध्ये ${Math.abs(intent.deltaQty)} युनिट ${intent.skuName} ${actionVerbMr} ची नोंद.`;
       } else if (lang === 'bn') {
-        spokenText = `নিশ্চিতকরণ: ${intent.facilityName}-এ ${Math.abs(intent.deltaQty)} ${intent.skuName} ${intent.deltaQty > 0 ? 'যোগ' : 'বিয়োগ'} করার অনুরোধ সনাক্ত হয়েছে।`;
+        spokenText = `সনাক্তকরণ: ${intent.conditionName ? intent.conditionName + ' জন্য ' : ''}${intent.facilityName}-এ ${Math.abs(intent.deltaQty)} ইউনিট ${intent.skuName} ${actionVerbBn} করার নির্দেশ।`;
       } else {
-        spokenText = `Intent detected: ${intent.deltaQty > 0 ? 'Add' : 'Deduct'} ${Math.abs(intent.deltaQty)} units of ${intent.skuName} at ${intent.facilityName}.`;
+        spokenText = `Intent confirmed: ${actionVerbEn} ${Math.abs(intent.deltaQty)} units of ${intent.skuName} for ${intent.conditionName || 'Care'} at ${intent.facilityName}.`;
       }
 
       const utterance = new SpeechSynthesisUtterance(spokenText);
@@ -372,7 +482,7 @@ export const VoiceNurseAssistantModal: React.FC<VoiceNurseAssistantModalProps> =
           facilityId: parsedIntent.facilityId,
           skuCode: parsedIntent.skuCode,
           deltaQty: parsedIntent.deltaQty,
-          reason: `Voice Dictation (${lang.toUpperCase()}): "${parsedIntent.rawTranscript}"`,
+          reason: `Voice Assistant [${parsedIntent.conditionName || 'Clinical'}] (${lang.toUpperCase()}): "${parsedIntent.rawTranscript}"`,
           requestId: `req_voice_${Date.now()}`,
         }),
       });
@@ -411,7 +521,7 @@ export const VoiceNurseAssistantModal: React.FC<VoiceNurseAssistantModalProps> =
             </div>
             <div>
               <h2 className="text-base font-semibold text-slate-100">{t.voiceAssistant}</h2>
-              <p className="text-xs text-slate-400">{t.micInstruction}</p>
+              <p className="text-xs text-slate-400">Clinical Disease & NLEM Drug Voice Triage</p>
             </div>
           </div>
           <button
@@ -466,7 +576,9 @@ export const VoiceNurseAssistantModal: React.FC<VoiceNurseAssistantModalProps> =
               {isListening ? t.listening : t.speakCommand}
             </p>
             <p className="text-xs text-slate-400 mt-1 max-w-xs">
-              {isListening ? t.micListening : 'e.g. "Add 50 Paracetamol to Shirur PHC"'}
+              {isListening
+                ? t.micListening
+                : 'Speak any clinical condition (e.g., "Dog bite emergency", "Severe diarrhea ORS", "Diabetic insulin", "Snake venom ASV")'}
             </p>
           </div>
 
@@ -497,24 +609,48 @@ export const VoiceNurseAssistantModal: React.FC<VoiceNurseAssistantModalProps> =
                   <Sparkles className="w-4 h-4" />
                   {t.confirmInventoryChange}
                 </div>
-                <button
-                  onClick={() => speakConfirmation(parsedIntent)}
-                  className="p-1 rounded bg-slate-700 text-slate-300 hover:text-white"
-                  title="Re-read intent aloud"
-                >
-                  <Volume2 className="w-3.5 h-3.5" />
-                </button>
+                {parsedIntent.urgencyLevel && (
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      parsedIntent.urgencyLevel === 'emergency'
+                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse'
+                        : parsedIntent.urgencyLevel === 'urgent'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        : 'bg-teal-500/20 text-teal-300 border border-teal-500/40'
+                    }`}
+                  >
+                    {parsedIntent.urgencyLevel}
+                  </span>
+                )}
               </div>
+
+              {parsedIntent.conditionName && (
+                <div className="p-2.5 rounded-lg bg-teal-950/40 border border-teal-500/30 flex items-center gap-2 text-xs text-teal-200">
+                  <HeartPulse className="w-4 h-4 text-teal-400 shrink-0" />
+                  <div>
+                    <span className="font-semibold block">Recognized Clinical Presentation:</span>
+                    <span>{parsedIntent.conditionName}</span>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-700/60">
                   <span className="text-slate-400 block">{t.action}</span>
                   <span
                     className={`font-semibold ${
-                      parsedIntent.deltaQty > 0 ? 'text-emerald-400' : 'text-amber-400'
+                      parsedIntent.deltaQty > 0
+                        ? 'text-emerald-400'
+                        : parsedIntent.action === 'CLINICAL_DISPENSE'
+                        ? 'text-rose-400'
+                        : 'text-amber-400'
                     }`}
                   >
-                    {parsedIntent.deltaQty > 0 ? '➕ ADD STOCK' : '➖ DEDUCT STOCK'}
+                    {parsedIntent.deltaQty > 0
+                      ? '➕ ADD STOCK'
+                      : parsedIntent.action === 'CLINICAL_DISPENSE'
+                      ? '💉 CLINICAL DISPENSE'
+                      : '➖ DEDUCT STOCK'}
                   </span>
                 </div>
 
@@ -531,7 +667,7 @@ export const VoiceNurseAssistantModal: React.FC<VoiceNurseAssistantModalProps> =
                 </div>
 
                 <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-700/60 col-span-2">
-                  <span className="text-slate-400 block">{t.sku}</span>
+                  <span className="text-slate-400 block">Matched Essential Medicine (NLEM)</span>
                   <span className="font-semibold text-teal-300">
                     {parsedIntent.skuName} ({parsedIntent.skuCode})
                   </span>
@@ -594,10 +730,10 @@ export const VoiceNurseAssistantModal: React.FC<VoiceNurseAssistantModalProps> =
             </div>
           )}
 
-          {/* Quick Voice Presets for Field Staff */}
+          {/* Multi-Disease Field Presets */}
           <div className="space-y-2 pt-2 border-t border-slate-800">
             <span className="text-xs font-semibold text-slate-400">
-              Quick Voice Presets ({LANGUAGE_OPTIONS.find((l) => l.code === lang)?.label}):
+              Clinical Disease Presets ({LANGUAGE_OPTIONS.find((l) => l.code === lang)?.label}):
             </span>
             <div className="space-y-1.5">
               {presets.map((preset, idx) => (

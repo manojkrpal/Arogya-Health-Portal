@@ -38,7 +38,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     { id: 'stock', label: 'Stock', icon: Package, restrictedForBrics: true, hideForAuditor: false },
     { id: 'transfers', label: 'Transfers', icon: ArrowLeftRight, badge: transferCount, restrictedForBrics: true, hideForAuditor: false },
     { id: 'coldchain', label: 'Cold-Chain', icon: Thermometer, restrictedForBrics: true, hideForAuditor: false },
-    { id: 'logistics', label: 'L3 Logistics', icon: Plane, restrictedForBrics: true, hideForAuditor: false },
+    { id: 'logistics', label: 'Logistics', icon: Plane, restrictedForBrics: true, hideForAuditor: false },
     { id: 'audit', label: 'Audit', icon: ShieldCheck, restrictedForBrics: true, hideForAuditor: false, showOnlyFor: canViewAudit },
     { id: 'federation', label: 'BRICS', icon: Globe2, restrictedForBrics: false, hideForAuditor: false },
   ];
