@@ -1,13 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { CurrentUser } from '../types/client.js';
+import { Language, translations, TranslationDict } from '../lib/i18n.js';
 
 interface AuthContextType {
   user: CurrentUser | null;
   token: string | null;
   isLoading: boolean;
   isOnline: boolean;
-  lang: 'en' | 'hi';
-  setLang: (lang: 'en' | 'hi') => void;
+  lang: Language;
+  t: TranslationDict;
+  setLang: (lang: Language) => void;
   login: (email: string, pass: string) => Promise<void>;
   switchRole: (email: string, pass: string) => Promise<void>;
   logout: () => void;
@@ -88,8 +90,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [token, setToken] = useState<string | null>(localStorage.getItem('arogyanet_token'));
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [dbEngine, setDbEngine] = useState<string>('PostgreSQL');
-  const [lang, setLangState] = useState<'en' | 'hi'>(
-    (localStorage.getItem('arogyanet_lang') as 'en' | 'hi') || 'en'
+  const [lang, setLangState] = useState<Language>(
+    (localStorage.getItem('arogyanet_lang') as Language) || 'en'
   );
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
 
@@ -104,7 +106,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
-  const setLang = (newLang: 'en' | 'hi') => {
+  const setLang = (newLang: Language) => {
     setLangState(newLang);
     localStorage.setItem('arogyanet_lang', newLang);
   };
@@ -184,6 +186,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isLoading,
         isOnline,
         lang,
+        t: translations[lang] || translations.en,
         setLang,
         login,
         switchRole,

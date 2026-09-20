@@ -13,6 +13,7 @@
     "test:stage3": "tsx tests/stage3_emergency_federation.test.ts",
     "test:stage4": "tsx tests/stage4_compliance_offline.test.ts",
     "test:stage5": "tsx tests/stage5_telemetry_coldchain.test.ts",
+    "test:level3": "tsx tests/level3_suite.test.ts",
     "seed:firestore": "tsx src/db/seedFirestore.ts",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"

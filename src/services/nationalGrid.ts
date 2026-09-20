@@ -1,0 +1,58 @@
+import { NationalGridState } from '../types/client.js';
+
+export async function getNationalGridStates(): Promise<NationalGridState[]> {
+  return [
+    {
+      stateCode: 'MH',
+      stateName: 'Maharashtra',
+      activeFacilities: 3240,
+      totalBeds: 24800,
+      bedsOccupied: 17850,
+      occupancyPct: 72,
+      criticalAlertsCount: 4,
+      avgStockCoverageDays: 14.8,
+      coldChainCompliancePct: 98.4,
+      readinessIndex: 91,
+      strategicBufferStatus: 'HEALTHY',
+    },
+    {
+      stateCode: 'GJ',
+      stateName: 'Gujarat',
+      activeFacilities: 2180,
+      totalBeds: 16500,
+      bedsOccupied: 10725,
+      occupancyPct: 65,
+      criticalAlertsCount: 2,
+      avgStockCoverageDays: 18.2,
+      coldChainCompliancePct: 99.1,
+      readinessIndex: 94,
+      strategicBufferStatus: 'HEALTHY',
+    },
+    {
+      stateCode: 'KA',
+      stateName: 'Karnataka',
+      activeFacilities: 2640,
+      totalBeds: 19800,
+      bedsOccupied: 15440,
+      occupancyPct: 78,
+      criticalAlertsCount: 7,
+      avgStockCoverageDays: 11.4,
+      coldChainCompliancePct: 96.2,
+      readinessIndex: 84,
+      strategicBufferStatus: 'SURGE_WARNING',
+    },
+    {
+      stateCode: 'KL',
+      stateName: 'Kerala',
+      activeFacilities: 1120,
+      totalBeds: 14200,
+      bedsOccupied: 11640,
+      occupancyPct: 82,
+      criticalAlertsCount: 3,
+      avgStockCoverageDays: 16.5,
+      coldChainCompliancePct: 99.5,
+      readinessIndex: 92,
+      strategicBufferStatus: 'HEALTHY',
+    },
+  ];
+}

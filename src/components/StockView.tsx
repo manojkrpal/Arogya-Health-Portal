@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.js';
 import { FacilitySnapshot, StockItem } from '../types/client.js';
+import { VoiceNurseAssistantModal } from './VoiceNurseAssistantModal.js';
+import { MultimodalTriageModal } from './MultimodalTriageModal.js';
 import {
   Package,
   Plus,
@@ -12,6 +14,8 @@ import {
   Building2,
   RefreshCw,
   Flame,
+  Mic,
+  Camera,
 } from 'lucide-react';
 
 interface StockViewProps {
@@ -27,7 +31,7 @@ export const StockView: React.FC<StockViewProps> = ({
   outbreakMultiplier,
   onSetOutbreakMultiplier,
 }) => {
-  const { user, token } = useAuth();
+  const { user, token, t } = useAuth();
   const [selectedFacilityId, setSelectedFacilityId] = useState<string>(
     user?.facilityId || facilities[0]?.id || ''
   );
@@ -35,6 +39,8 @@ export const StockView: React.FC<StockViewProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [savingSkuId, setSavingSkuId] = useState<string | null>(null);
   const [savedSkuId, setSavedSkuId] = useState<string | null>(null);
+  const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
+  const [showInspectionModal, setShowInspectionModal] = useState<boolean>(false);
 
   // If nurse, lock facility to their assigned facility
   const isNurse = user?.role === 'phc_nurse';
@@ -104,7 +110,7 @@ export const StockView: React.FC<StockViewProps> = ({
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-4 pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div>
           <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
             <Package className="w-5 h-5 text-teal-400" />
@@ -112,9 +118,32 @@ export const StockView: React.FC<StockViewProps> = ({
           </h2>
           <p className="text-xs text-slate-400">
             {isNurse
-              ? 'Large touch steppers for direct nurse stock-on-hand adjustments'
+              ? 'Large touch steppers, voice assistant & multimodal vision verification'
               : 'Multi-facility inventory monitoring and emergency surge control'}
           </p>
+        </div>
+
+        {/* Voice Assistant & Vision Inspection Action Triggers */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowVoiceModal(true)}
+            className="px-3 py-1.5 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 text-xs font-semibold flex items-center gap-1.5 transition shadow-sm shadow-teal-500/10"
+            title="Voice-first inventory adjustments"
+          >
+            <Mic className="w-3.5 h-3.5 text-teal-400" />
+            <span>Voice Update</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowInspectionModal(true)}
+            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition"
+            title="Multimodal Shelf OCR and Cold-Chain Verification"
+          >
+            <Camera className="w-3.5 h-3.5 text-amber-400" />
+            <span>Shelf OCR & Vision</span>
+          </button>
         </div>
       </div>
 
@@ -281,6 +310,35 @@ export const StockView: React.FC<StockViewProps> = ({
             );
           })}
         </div>
+      )}
+
+      {/* Voice Assistant Modal */}
+      {showVoiceModal && (
+        <VoiceNurseAssistantModal
+          isOpen={showVoiceModal}
+          onClose={() => setShowVoiceModal(false)}
+          onSuccess={() => {
+            onRefreshAll();
+            // Refetch current facility stock
+            if (effectiveFacilityId) {
+              fetch(`/v1/facilities/${effectiveFacilityId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+                .then((res) => res.json())
+                .then((data) => setStock(data.stock || []))
+                .catch(console.error);
+            }
+          }}
+          facilities={facilities}
+        />
+      )}
+
+      {/* Multimodal Vision & Shelf Inspection Modal */}
+      {showInspectionModal && (
+        <MultimodalTriageModal
+          facilityName={currentFacility?.name || 'Primary Health Centre'}
+          onClose={() => setShowInspectionModal(false)}
+        />
       )}
     </div>
   );

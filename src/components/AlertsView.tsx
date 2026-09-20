@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   Snowflake,
   RefreshCw,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { GeminiAdvisoryModal } from './GeminiAdvisoryModal.js';
 
@@ -26,16 +28,46 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
   isLoading,
   onProposeTransfer,
 }) => {
-  const { user, token } = useAuth();
+  const { user, token, lang } = useAuth();
   const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExplaining, setIsExplaining] = useState(false);
   const [advisoryError, setAdvisoryError] = useState<string | null>(null);
+  const [speakingAlertId, setSpeakingAlertId] = useState<string | null>(null);
   const [explanationData, setExplanationData] = useState<{
     plan: GeminiTransferPlan;
     proposedLines: ProposedTransferLine[];
     modelNotice: string;
   } | null>(null);
+
+  const handleSpeakAlert = (alert: AlertItem) => {
+    if ('speechSynthesis' in window) {
+      if (speakingAlertId === alert.id) {
+        window.speechSynthesis.cancel();
+        setSpeakingAlertId(null);
+        return;
+      }
+      window.speechSynthesis.cancel();
+      let readout = '';
+      if (lang === 'hi') {
+        readout = `चेतावनी: ${alert.facilityName} में ${alert.message}। 7-दिवसीय स्टॉकआउट जोखिम ${(alert.stockoutProb7d * 100).toFixed(0)} प्रतिशत है।`;
+      } else if (lang === 'mr') {
+        readout = `इशारा: ${alert.facilityName} येथे ${alert.message}। 7 दिवसांत औषध तुटवड्याचा धोका ${(alert.stockoutProb7d * 100).toFixed(0)} टक्के आहे.`;
+      } else if (lang === 'bn') {
+        readout = `সতর্কতা: ${alert.facilityName}-এ ${alert.message}। আগামী ৭ দিনে স্টকের ঘাটতির আশঙ্কা ${(alert.stockoutProb7d * 100).toFixed(0)} শতাংশ।`;
+      } else {
+        readout = `Critical Alert: At ${alert.facilityName}, ${alert.message}. 7-day stockout probability is ${(alert.stockoutProb7d * 100).toFixed(0)} percent.`;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(readout);
+      utterance.lang = lang === 'hi' ? 'hi-IN' : lang === 'mr' ? 'mr-IN' : lang === 'bn' ? 'bn-IN' : 'en-IN';
+      utterance.rate = 0.95;
+      utterance.onstart = () => setSpeakingAlertId(alert.id);
+      utterance.onend = () => setSpeakingAlertId(null);
+      utterance.onerror = () => setSpeakingAlertId(null);
+      window.speechSynthesis.speak(utterance);
+    }
+  };
 
   // Trigger Gemini structured explanation & deterministic optimization in expandable modal
   const handleExplainAlert = async (alert: AlertItem) => {
@@ -184,11 +216,31 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
 
                   <div className="flex items-center gap-2">
                     <button
+                      type="button"
+                      onClick={() => handleSpeakAlert(alert)}
+                      className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition ${
+                        speakingAlertId === alert.id
+                          ? 'bg-teal-500 text-slate-950 border-teal-400 animate-pulse'
+                          : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                      }`}
+                      title="Listen to audible alert readout in regional language"
+                    >
+                      {speakingAlertId === alert.id ? (
+                        <VolumeX className="w-3.5 h-3.5 text-slate-950" />
+                      ) : (
+                        <Volume2 className="w-3.5 h-3.5 text-teal-400" />
+                      )}
+                      <span className="hidden sm:inline">
+                        {speakingAlertId === alert.id ? 'Stop Voice' : 'Audio Alert'}
+                      </span>
+                    </button>
+
+                    <button
                       onClick={() => handleExplainAlert(alert)}
                       className="px-3 py-1.5 rounded-lg bg-teal-500/15 hover:bg-teal-500/25 border border-teal-500/30 text-teal-300 text-xs font-semibold flex items-center gap-1.5 transition"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-teal-400" />
-                      Gemini Advisory (EN/HI)
+                      Gemini Advisory
                     </button>
 
                     {user?.role !== 'phc_nurse' && (

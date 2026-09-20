@@ -20,6 +20,23 @@ import {
   getDispatchRoutePlans,
 } from '../services/telemetry.js';
 import {
+  getDroneCorridors,
+  getActiveDroneFlights,
+  dispatchDroneFlight,
+  completeDroneFlight,
+} from '../services/droneLogistics.js';
+import {
+  getEpidemicForecasts,
+  updateClimateTelemetry,
+} from '../services/epidemicEngine.js';
+import {
+  getPurchaseOrders,
+  createPurchaseOrder,
+  receivePurchaseOrder,
+} from '../services/procurementService.js';
+import { getNationalGridStates } from '../services/nationalGrid.js';
+import { analyzeMultimodalTriageWithGemini } from '../services/gemini.js';
+import {
   adjustFirestoreStock,
   proposeFirestoreTransfer,
   approveFirestoreTransfer,
@@ -1700,4 +1717,289 @@ apiRouter.post(
     }
   }
 );
+
+// ---------------------------------------------------------------------------
+// LEVEL 3: AUTONOMOUS DRONE COLD-CHAIN AERIAL CORRIDORS
+// ---------------------------------------------------------------------------
+
+// GET /v1/drones/corridors
+apiRouter.get(
+  '/drones/corridors',
+  bricsSecurityCheck,
+  authenticateToken,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const corridors = await getDroneCorridors();
+      res.json({ success: true, corridors });
+    } catch (err: any) {
+      res.status(500).json({ error: 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+);
+
+// GET /v1/drones/flights
+apiRouter.get(
+  '/drones/flights',
+  bricsSecurityCheck,
+  authenticateToken,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const flights = await getActiveDroneFlights();
+      res.json({ success: true, flights });
+    } catch (err: any) {
+      res.status(500).json({ error: 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+);
+
+// POST /v1/drones/dispatch
+apiRouter.post(
+  '/drones/dispatch',
+  bricsSecurityCheck,
+  authenticateToken,
+  requireRole(['district_officer', 'national_war_room', 'state_admin', 'procurement_officer']),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const user = (req as any).user as TokenPayload;
+      const { corridorId, skuCode, skuName, qty } = req.body;
+      const reqId = (req as any).requestId || `req_${Date.now()}`;
+
+      if (!corridorId || !skuCode || !qty) {
+        res.status(400).json({ error: 'INVALID_PAYLOAD', message: 'corridorId, skuCode, and qty are required' });
+        return;
+      }
+
+      const flight = await dispatchDroneFlight({
+        corridorId,
+        skuCode,
+        skuName: skuName || skuCode,
+        qty: Number(qty),
+        actorEmail: user.email,
+        actorRole: user.role,
+        requestId: reqId,
+      });
+
+      res.json({ success: true, flight });
+    } catch (err: any) {
+      res.status(500).json({ error: 'DISPATCH_ERROR', message: err.message });
+    }
+  }
+);
+
+// POST /v1/drones/land
+apiRouter.post(
+  '/drones/land',
+  bricsSecurityCheck,
+  authenticateToken,
+  requireRole(['district_officer', 'national_war_room', 'phc_nurse', 'state_admin']),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const user = (req as any).user as TokenPayload;
+      const { flightId } = req.body;
+      const reqId = (req as any).requestId || `req_${Date.now()}`;
+
+      if (!flightId) {
+        res.status(400).json({ error: 'INVALID_PAYLOAD', message: 'flightId is required' });
+        return;
+      }
+
+      const flight = await completeDroneFlight({
+        flightId,
+        actorEmail: user.email,
+        actorRole: user.role,
+        requestId: reqId,
+      });
+
+      res.json({ success: true, flight });
+    } catch (err: any) {
+      res.status(500).json({ error: 'LANDING_ERROR', message: err.message });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// LEVEL 3: EPIDEMIOLOGICAL FORECASTING & CLIMATE CORRELATION
+// ---------------------------------------------------------------------------
+
+// GET /v1/epidemic/forecasts
+apiRouter.get(
+  '/epidemic/forecasts',
+  bricsSecurityCheck,
+  authenticateToken,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const forecasts = await getEpidemicForecasts();
+      res.json({ success: true, forecasts });
+    } catch (err: any) {
+      res.status(500).json({ error: 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+);
+
+// POST /v1/epidemic/climate-sync
+apiRouter.post(
+  '/epidemic/climate-sync',
+  bricsSecurityCheck,
+  authenticateToken,
+  requireRole(['national_war_room', 'state_admin', 'district_officer']),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const user = (req as any).user as TokenPayload;
+      const { district, rainfallMm, tempCelsius, humidityPct } = req.body;
+      const reqId = (req as any).requestId || `req_${Date.now()}`;
+
+      if (!district || rainfallMm === undefined) {
+        res.status(400).json({ error: 'INVALID_PAYLOAD', message: 'district and rainfallMm are required' });
+        return;
+      }
+
+      const updated = await updateClimateTelemetry({
+        district,
+        rainfallMm: Number(rainfallMm),
+        tempCelsius: Number(tempCelsius ?? 28.0),
+        humidityPct: Number(humidityPct ?? 80.0),
+        actorEmail: user.email,
+        actorRole: user.role,
+        requestId: reqId,
+      });
+
+      res.json({ success: true, forecasts: updated });
+    } catch (err: any) {
+      res.status(500).json({ error: 'CLIMATE_SYNC_ERROR', message: err.message });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// LEVEL 3: AUTONOMOUS PROCUREMENT & CDW WAREHOUSE REPLENISHMENT
+// ---------------------------------------------------------------------------
+
+// GET /v1/procurement/orders
+apiRouter.get(
+  '/procurement/orders',
+  bricsSecurityCheck,
+  authenticateToken,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const orders = await getPurchaseOrders();
+      res.json({ success: true, orders });
+    } catch (err: any) {
+      res.status(500).json({ error: 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+);
+
+// POST /v1/procurement/orders
+apiRouter.post(
+  '/procurement/orders',
+  bricsSecurityCheck,
+  authenticateToken,
+  requireRole(['procurement_officer', 'state_admin', 'national_war_room']),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const user = (req as any).user as TokenPayload;
+      const { cdwHubName, supplierName, skuCode, skuName, quantity, unitCostInr, deliveryType } = req.body;
+      const reqId = (req as any).requestId || `req_${Date.now()}`;
+
+      if (!skuCode || !quantity || !unitCostInr) {
+        res.status(400).json({ error: 'INVALID_PAYLOAD', message: 'skuCode, quantity, and unitCostInr are required' });
+        return;
+      }
+
+      const newPO = await createPurchaseOrder({
+        cdwHubName,
+        supplierName: supplierName || 'State Empanelled Medical Distributor',
+        skuCode,
+        skuName: skuName || skuCode,
+        quantity: Number(quantity),
+        unitCostInr: Number(unitCostInr),
+        deliveryType: deliveryType || 'bulk_consignment',
+        actorEmail: user.email,
+        actorRole: user.role,
+        requestId: reqId,
+      });
+
+      res.json({ success: true, order: newPO });
+    } catch (err: any) {
+      res.status(500).json({ error: 'PO_CREATION_ERROR', message: err.message });
+    }
+  }
+);
+
+// PATCH /v1/procurement/orders/:id/receive
+apiRouter.patch(
+  '/procurement/orders/:id/receive',
+  bricsSecurityCheck,
+  authenticateToken,
+  requireRole(['procurement_officer', 'state_admin', 'district_officer']),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const user = (req as any).user as TokenPayload;
+      const poId = req.params.id;
+      const reqId = (req as any).requestId || `req_${Date.now()}`;
+
+      const po = await receivePurchaseOrder({
+        poId,
+        actorEmail: user.email,
+        actorRole: user.role,
+        requestId: reqId,
+      });
+
+      res.json({ success: true, order: po });
+    } catch (err: any) {
+      res.status(500).json({ error: 'PO_RECEIVE_ERROR', message: err.message });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// LEVEL 3: MULTI-STATE NATIONAL WAR ROOM GRID
+// ---------------------------------------------------------------------------
+
+// GET /v1/national/grid
+apiRouter.get(
+  '/national/grid',
+  bricsSecurityCheck,
+  authenticateToken,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const states = await getNationalGridStates();
+      res.json({ success: true, states });
+    } catch (err: any) {
+      res.status(500).json({ error: 'INTERNAL_ERROR', message: err.message });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// LEVEL 3: MULTIMODAL AI CLINICAL & PHOTO TRIAGE
+// ---------------------------------------------------------------------------
+
+// POST /v1/ai/multimodal-triage
+apiRouter.post(
+  '/ai/multimodal-triage',
+  bricsSecurityCheck,
+  authenticateToken,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { facilityName, symptomText, imageBase64, preferredLang } = req.body;
+      const triage = await analyzeMultimodalTriageWithGemini({
+        facilityName: facilityName || 'Shirur PHC',
+        symptomText,
+        imageBase64,
+        preferredLang: preferredLang || 'en',
+      });
+
+      res.json({
+        success: true,
+        triage: triage.result,
+        isStub: triage.isStub,
+        modelUsed: triage.modelUsed,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'TRIAGE_ERROR', message: err.message });
+    }
+  }
+);
+
 

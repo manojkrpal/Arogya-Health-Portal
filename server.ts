@@ -11,7 +11,9 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  // Configure high payload limits for multimodal camera and shelf OCR uploads
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   // Health check endpoint (serves immediately for Cloud Run container probes)
   app.get('/api/health', (req, res) => {
@@ -23,8 +25,10 @@ async function startServer() {
     });
   });
 
-  // Mount API v1 router FIRST
+  // Mount API routers FIRST before Vite middleware
   app.use('/v1', apiRouter);
+  app.use('/api/v1', apiRouter);
+  app.use('/api', apiRouter);
 
   // Vite middleware for development vs static build for production
   if (process.env.NODE_ENV !== 'production') {

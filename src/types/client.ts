@@ -278,3 +278,108 @@ export interface DispatchRoutePlan {
   dispatchedByEmail?: string;
   completedAt?: string;
 }
+
+export interface DroneCorridor {
+  id: string;
+  code: string;
+  originFacilityId: string;
+  originFacilityName: string;
+  destinationFacilityId: string;
+  destinationFacilityName: string;
+  distanceKm: number;
+  flightTimeMinutes: number;
+  maxAltitudeMeters: number;
+  status: 'active_corridor' | 'weather_hold' | 'scheduled';
+  terrainType: 'Western Ghats Ridge' | 'Highland Plateau' | 'River Basin';
+  batteryRequiredPct: number;
+}
+
+export interface DroneFlight {
+  id: string;
+  flightCode: string;
+  corridorId: string;
+  droneModel: string;
+  originName: string;
+  destinationName: string;
+  skuCode: string;
+  skuName: string;
+  qty: number;
+  status: 'standby' | 'in_flight' | 'landed' | 'aborted';
+  altitudeMeters: number;
+  airspeedKmh: number;
+  batteryPct: number;
+  payloadTempC: number;
+  windSpeedKmh: number;
+  progressPct: number;
+  currentLat: number;
+  currentLng: number;
+  startedAt?: string;
+  completedAt?: string;
+  dispatchedByEmail?: string;
+}
+
+export interface EpidemicForecastItem {
+  id: string;
+  pathogen: 'Dengue' | 'Malaria' | 'Cholera / ADD' | 'Viral Respiratory (ILI)';
+  district: string;
+  currentActiveCases: number;
+  predicted14dCases: number;
+  r0Value: number;
+  weatherRiskIndex: number; // 0 to 100
+  monsoonRainfallMm: number;
+  tempCelsius: number;
+  humidityPct: number;
+  alertLevel: 'watch' | 'warning' | 'outbreak_critical';
+  surgeMultiplier: number;
+  recommendedBufferPreAllocation: Array<{
+    skuCode: string;
+    skuName: string;
+    recommendedUnits: number;
+    urgency: 'high' | 'critical';
+  }>;
+  aiEpidemiologicalNote: string;
+}
+
+export interface ProcurementPO {
+  id: string;
+  poNumber: string;
+  cdwHubName: string;
+  supplierName: string;
+  skuCode: string;
+  skuName: string;
+  quantity: number;
+  unitCostInr: number;
+  totalAmountInr: number;
+  leadTimeDays: number;
+  deliveryType: 'expedited_cold_courier' | 'bulk_consignment';
+  status: 'draft' | 'ordered' | 'in_transit' | 'received';
+  orderedByEmail: string | null;
+  createdAt: string;
+  etaDate: string;
+}
+
+export interface NationalGridState {
+  stateCode: string;
+  stateName: string;
+  activeFacilities: number;
+  totalBeds: number;
+  bedsOccupied: number;
+  occupancyPct: number;
+  criticalAlertsCount: number;
+  avgStockCoverageDays: number;
+  coldChainCompliancePct: number;
+  readinessIndex: number; // 0 to 100
+  strategicBufferStatus: 'HEALTHY' | 'SURGE_WARNING' | 'EMERGENCY_MOBILIZATION';
+}
+
+export interface MultimodalTriageResult {
+  verified: boolean;
+  recognizedCondition: string;
+  urgencyLevel: 'routine' | 'urgent' | 'emergency';
+  clinicalSummary: string;
+  recommendedSkus: Array<{ skuCode: string; skuName: string; recommendedQty: number }>;
+  confidenceScore: number;
+  detectedExpiry?: string;
+  packagingIntegrity?: 'intact' | 'compromised';
+  language: string;
+}
