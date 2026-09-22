@@ -12,6 +12,28 @@ import {
 } from 'firebase/firestore';
 import { db, TENANT_ID } from '../lib/firebase.js';
 
+/**
+ * Deeply strips undefined properties so Firestore setDoc/updateDoc never fails
+ */
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === null || data === undefined) {
+    return data;
+  }
+  if (Array.isArray(data)) {
+    return data.map((item) => sanitizeForFirestore(item)) as unknown as T;
+  }
+  if (typeof data === 'object' && !(data instanceof Date)) {
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        cleaned[key] = sanitizeForFirestore(value);
+      }
+    }
+    return cleaned as T;
+  }
+  return data;
+}
+
 export interface AuditEvent {
   id: string;
   actor: {
@@ -37,11 +59,11 @@ export async function logAuditEvent(event: Omit<AuditEvent, 'id' | 'timestamp'>)
   const eventId = `audit_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   const auditDocRef = doc(db, 'tenants', TENANT_ID, 'audit_events', eventId);
 
-  const fullRecord: AuditEvent = {
+  const fullRecord: AuditEvent = sanitizeForFirestore({
     ...event,
     id: eventId,
     timestamp: new Date().toISOString(),
-  };
+  });
 
   await setDoc(auditDocRef, fullRecord);
   return eventId;
@@ -150,19 +172,22 @@ export async function proposeFirestoreTransfer(order: {
   proposedBy: string;
 }): Promise<void> {
   const transferDocRef = doc(db, 'tenants', TENANT_ID, 'transfers', order.id);
-  await setDoc(transferDocRef, {
-    ...order,
-    status: 'proposed',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
+  await setDoc(
+    transferDocRef,
+    sanitizeForFirestore({
+      ...order,
+      status: 'proposed',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+  );
 
   await logAuditEvent({
     actor: { userId: 'system', email: order.proposedBy, role: 'system' },
     action: 'TRANSFER_PROPOSED',
     entityType: 'TRANSFER',
     entityId: order.id,
-    after: order,
+    after: sanitizeForFirestore(order),
   });
 }
 
@@ -234,18 +259,20 @@ export async function updateFirestoreCapacity(
   actor: { userId: string; email: string; role: string }
 ): Promise<void> {
   const facDocRef = doc(db, 'tenants', TENANT_ID, 'facilities', facilityId);
+  const cleanCapacity = {
+    ...(capacity.bedsTotal !== undefined && capacity.bedsTotal !== null ? { beds_total: capacity.bedsTotal } : {}),
+    ...(capacity.bedsAvailable !== undefined && capacity.bedsAvailable !== null ? { beds_available: capacity.bedsAvailable } : {}),
+    ...(capacity.oxygenCylinders !== undefined && capacity.oxygenCylinders !== null ? { oxygen_lines_available: capacity.oxygenCylinders } : {}),
+  };
+
   await setDoc(
     facDocRef,
-    {
+    sanitizeForFirestore({
       id: facilityId,
       tenant_id: TENANT_ID,
-      capacity: {
-        ...(capacity.bedsTotal !== undefined ? { beds_total: capacity.bedsTotal } : {}),
-        ...(capacity.bedsAvailable !== undefined ? { beds_available: capacity.bedsAvailable } : {}),
-        ...(capacity.oxygenCylinders !== undefined ? { oxygen_lines_available: capacity.oxygenCylinders } : {}),
-      },
+      capacity: cleanCapacity,
       updated_at: new Date().toISOString(),
-    },
+    }),
     { merge: true }
   );
 
@@ -254,7 +281,7 @@ export async function updateFirestoreCapacity(
     action: 'CAPACITY_UPDATE',
     entityType: 'FACILITY_CAPACITY',
     entityId: facilityId,
-    after: capacity,
+    after: sanitizeForFirestore(capacity),
   });
 }
 
@@ -269,7 +296,7 @@ export async function updateFirestoreAttendance(
   const facDocRef = doc(db, 'tenants', TENANT_ID, 'facilities', facilityId);
   await setDoc(
     facDocRef,
-    {
+    sanitizeForFirestore({
       staffing: {
         phc_nurse_count: attendance.nursesPresent ?? 0,
         doctors_count: attendance.doctorsPresent ?? 0,
@@ -277,7 +304,7 @@ export async function updateFirestoreAttendance(
         roster_nurses: attendance.rosterNurses ?? 0,
       },
       updated_at: new Date().toISOString(),
-    },
+    }),
     { merge: true }
   );
 
@@ -286,7 +313,7 @@ export async function updateFirestoreAttendance(
     action: 'ATTENDANCE_UPDATE',
     entityType: 'FACILITY_ATTENDANCE',
     entityId: facilityId,
-    after: attendance,
+    after: sanitizeForFirestore(attendance),
   });
 }
 
@@ -303,11 +330,11 @@ export async function updateFirestoreEmergency(
   const tenantDocRef = doc(db, 'tenants', targetTenantId);
   await setDoc(
     tenantDocRef,
-    {
+    sanitizeForFirestore({
       emergency_outbreak_multiplier: outbreakMultiplier,
       emergency_active_label: activeLabel,
       updated_at: new Date().toISOString(),
-    },
+    }),
     { merge: true }
   );
 
@@ -316,7 +343,7 @@ export async function updateFirestoreEmergency(
     action: 'EMERGENCY_SURGE_ACTIVATED',
     entityType: 'TENANT_EMERGENCY',
     entityId: targetTenantId,
-    after: { outbreakMultiplier, activeLabel },
+    after: sanitizeForFirestore({ outbreakMultiplier, activeLabel }),
   });
 }
 
@@ -335,7 +362,7 @@ export async function syncAlertToFirestore(alert: {
   const alertDocRef = doc(db, 'tenants', TENANT_ID, 'alerts', alert.id);
   await setDoc(
     alertDocRef,
-    {
+    sanitizeForFirestore({
       id: alert.id,
       facility_id: alert.facilityId,
       sku_id: alert.skuId,
@@ -344,7 +371,7 @@ export async function syncAlertToFirestore(alert: {
       message: alert.message,
       open: alert.open,
       updated_at: new Date().toISOString(),
-    },
+    }),
     { merge: true }
   );
 }
@@ -368,12 +395,12 @@ export async function syncFederationAggregateToFirestore(
   const aggRef = doc(db, 'brics_federation', regionId, 'aggregates', aggregateId);
   await setDoc(
     aggRef,
-    {
+    sanitizeForFirestore({
       ...aggregateData,
       privacyStandard: 'DIFFERENTIAL_PRIVACY_EPSILON_0.5',
       zeroPhiExportCertified: true,
       updated_at: new Date().toISOString(),
-    },
+    }),
     { merge: true }
   );
 }
