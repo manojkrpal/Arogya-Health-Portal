@@ -8,9 +8,6 @@ import { AlertsView } from './components/AlertsView.js';
 import { TransfersView } from './components/TransfersView.js';
 import { FederationView } from './components/FederationView.js';
 import { StockView } from './components/StockView.js';
-import { AuditView } from './components/AuditView.js';
-import { ColdChainView } from './components/ColdChainView.js';
-import { AutonomousLogisticsView } from './components/AutonomousLogisticsView.js';
 import {
   FacilitySnapshot,
   AlertItem,
@@ -158,36 +155,19 @@ function ArogyaNetApp() {
           />
         )}
 
-        {activeTab === 'transfers' && user?.role !== 'brics_analyst' && (
+        {(activeTab === 'transfers' || activeTab === 'coldchain' || activeTab === 'logistics') && user?.role !== 'brics_analyst' && (
           <TransfersView
             transfers={transfers}
             facilities={facilities}
             skus={skus}
             onRefresh={refreshData}
             isLoading={isLoading}
+            initialSubTab={activeTab === 'coldchain' ? 'coldchain' : activeTab === 'logistics' ? 'logistics' : 'transfers'}
           />
         )}
 
-        {activeTab === 'coldchain' && user?.role !== 'brics_analyst' && (
-          <div className="max-w-6xl mx-auto p-3 sm:p-6">
-            <ColdChainView />
-          </div>
-        )}
-
-        {activeTab === 'logistics' && user?.role !== 'brics_analyst' && (
-          <div className="max-w-6xl mx-auto p-3 sm:p-6">
-            <AutonomousLogisticsView />
-          </div>
-        )}
-
-        {activeTab === 'federation' && (
-          <FederationView />
-        )}
-
-        {activeTab === 'audit' && user?.role !== 'brics_analyst' && (
-          <div className="max-w-5xl mx-auto p-3 sm:p-6">
-            <AuditView />
-          </div>
+        {(activeTab === 'federation' || activeTab === 'audit') && (
+          <FederationView initialSubTab={activeTab === 'audit' ? 'audit' : 'indices'} />
         )}
 
         {/* Facility Detail Slide-over Drawer */}

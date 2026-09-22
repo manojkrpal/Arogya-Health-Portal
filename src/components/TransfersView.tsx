@@ -8,6 +8,8 @@ import {
   GeminiTransferPlan,
   ProposedTransferLine,
 } from '../types/client.js';
+import { ColdChainView } from './ColdChainView.js';
+import { AutonomousLogisticsView } from './AutonomousLogisticsView.js';
 import {
   ArrowLeftRight,
   CheckCircle2,
@@ -20,6 +22,8 @@ import {
   Truck,
   MapPin,
   Sparkles,
+  Thermometer,
+  Plane,
 } from 'lucide-react';
 import { GeminiAdvisoryModal } from './GeminiAdvisoryModal.js';
 
@@ -29,6 +33,7 @@ interface TransfersViewProps {
   skus: SkuItem[];
   onRefresh: () => void;
   isLoading: boolean;
+  initialSubTab?: 'transfers' | 'coldchain' | 'logistics';
 }
 
 export const TransfersView: React.FC<TransfersViewProps> = ({
@@ -37,8 +42,10 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
   skus,
   onRefresh,
   isLoading,
+  initialSubTab = 'transfers',
 }) => {
   const { user, token } = useAuth();
+  const [activeSubTab, setActiveSubTab] = useState<'transfers' | 'coldchain' | 'logistics'>(initialSubTab);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -197,149 +204,208 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
 
   return (
     <div className="p-3 sm:p-5 max-w-4xl mx-auto space-y-4 pb-24">
-      {/* Header */}
+      {/* Header & Sub-tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-            <ArrowLeftRight className="w-6 h-6 text-teal-400" />
-            Medicine Transfers
+            <Truck className="w-6 h-6 text-teal-400" />
+            Logistics & Redistribution
           </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Inter-district stock rebalancing, IoT cold-chain telemetry, and autonomous drone dispatch
+          </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {canPropose && (
-            <button
-              onClick={() => setShowModal(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Transfer</span>
-            </button>
-          )}
+        {/* Sub-tab pills */}
+        <div className="flex items-center p-1 bg-slate-900 rounded-xl border border-slate-800 text-xs self-start sm:self-auto flex-wrap gap-1">
           <button
-            onClick={onRefresh}
-            className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition border border-slate-700"
-            title="Refresh transfers"
+            onClick={() => setActiveSubTab('transfers')}
+            className={`px-3 py-1.5 rounded-lg transition font-medium flex items-center gap-1.5 ${
+              activeSubTab === 'transfers'
+                ? 'bg-teal-600 text-white font-bold'
+                : 'text-slate-400 hover:text-white'
+            }`}
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-teal-400' : ''}`} />
+            <ArrowLeftRight className="w-3.5 h-3.5" />
+            <span>Transfers</span>
+            {transfers.filter((t) => t.status === 'proposed').length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-bold text-[10px]">
+                {transfers.filter((t) => t.status === 'proposed').length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveSubTab('coldchain')}
+            className={`px-3 py-1.5 rounded-lg transition font-medium flex items-center gap-1.5 ${
+              activeSubTab === 'coldchain'
+                ? 'bg-teal-600 text-white font-bold'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Thermometer className="w-3.5 h-3.5" />
+            <span>Cold-Chain IoT</span>
+          </button>
+          <button
+            onClick={() => setActiveSubTab('logistics')}
+            className={`px-3 py-1.5 rounded-lg transition font-medium flex items-center gap-1.5 ${
+              activeSubTab === 'logistics'
+                ? 'bg-teal-600 text-white font-bold'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Plane className="w-3.5 h-3.5" />
+            <span>Drone Corridors</span>
           </button>
         </div>
       </div>
 
-      {/* Messages */}
-      {actionError && (
-        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium">
-          {actionError}
-        </div>
-      )}
-      {successMsg && (
-        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-medium flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{successMsg}</span>
-        </div>
-      )}
-
-      {/* Transfer Orders List */}
-      {transfers.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-slate-900/60 border border-slate-800">
-          <Truck className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-          <h3 className="text-sm font-semibold text-slate-300">No Transfers Needed</h3>
-          <p className="text-xs text-slate-500 mt-1">
-            All PHCs currently maintain safe medicine buffer stock.
-          </p>
-        </div>
+      {activeSubTab === 'coldchain' ? (
+        <ColdChainView />
+      ) : activeSubTab === 'logistics' ? (
+        <AutonomousLogisticsView />
       ) : (
-        <div className="space-y-3">
-          {transfers.map((order) => {
-            const isProposed = order.status === 'proposed';
-            const isApproved = order.status === 'approved';
-
-            return (
-              <div
-                key={order.id}
-                className={`p-4 rounded-2xl border transition-all ${
-                  isProposed
-                    ? 'bg-slate-900/95 border-amber-500/40 shadow-md'
-                    : isApproved
-                    ? 'bg-slate-900/90 border-emerald-500/40'
-                    : 'bg-slate-900/70 border-slate-800'
-                }`}
+        <>
+          {/* Action row for Transfers */}
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <span className="text-xs text-slate-400">
+              {transfers.length} transfer orders &middot; Auto-optimizing for &ge; 7-day donor safety buffer
+            </span>
+            <div className="flex items-center gap-2">
+              {canPropose && (
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Transfer</span>
+                </button>
+              )}
+              <button
+                onClick={onRefresh}
+                className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition border border-slate-700"
+                title="Refresh transfers"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                        order.coldChain
-                          ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
-                          : 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
-                      }`}
-                    >
-                      {order.coldChain ? <Snowflake className="w-5 h-5" /> : <Truck className="w-5 h-5" />}
-                    </div>
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-teal-400' : ''}`} />
+              </button>
+            </div>
+          </div>
 
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-bold text-white truncate">{order.skuName}</h3>
-                      <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                        <span className="text-slate-300 font-medium truncate">{order.fromFacilityName}</span>
-                        <ArrowLeftRight className="w-3 h-3 text-teal-400 shrink-0" />
-                        <span className="text-teal-300 font-medium truncate">{order.toFacilityName}</span>
+          {/* Messages */}
+          {actionError && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium">
+              {actionError}
+            </div>
+          )}
+          {successMsg && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-medium flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+          {/* Transfer Orders List */}
+          {transfers.length === 0 ? (
+            <div className="p-12 text-center rounded-2xl bg-slate-900/60 border border-slate-800">
+              <Truck className="w-10 h-10 text-slate-600 mx-auto mb-2" />
+              <h3 className="text-sm font-semibold text-slate-300">No Transfers Needed</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                All PHCs currently maintain safe medicine buffer stock.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {transfers.map((order) => {
+                const isProposed = order.status === 'proposed';
+                const isApproved = order.status === 'approved';
+
+                return (
+                  <div
+                    key={order.id}
+                    className={`p-4 rounded-2xl border transition-all ${
+                      isProposed
+                        ? 'bg-slate-900/95 border-amber-500/40 shadow-md'
+                        : isApproved
+                        ? 'bg-slate-900/90 border-emerald-500/40'
+                        : 'bg-slate-900/70 border-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
+                            order.coldChain
+                              ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
+                              : 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
+                          }`}
+                        >
+                          {order.coldChain ? <Snowflake className="w-5 h-5" /> : <Truck className="w-5 h-5" />}
+                        </div>
+
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-bold text-white truncate">{order.skuName}</h3>
+                          <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                            <span className="text-slate-300 font-medium truncate">{order.fromFacilityName}</span>
+                            <ArrowLeftRight className="w-3 h-3 text-teal-400 shrink-0" />
+                            <span className="text-teal-300 font-medium truncate">{order.toFacilityName}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quantity & Status Badge */}
+                      <div className="text-right shrink-0 flex flex-col items-end">
+                        <div className="text-lg font-bold text-white">
+                          +{order.qty} <span className="text-xs text-slate-400">{order.unit}</span>
+                        </div>
+                        <span
+                          className={`mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            isProposed
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
+                              : isApproved
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                              : 'bg-slate-700 text-slate-300'
+                          }`}
+                        >
+                          {order.status}
+                        </span>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Quantity & Status Badge */}
-                  <div className="text-right shrink-0 flex flex-col items-end">
-                    <div className="text-lg font-bold text-white">
-                      +{order.qty} <span className="text-xs text-slate-400">{order.unit}</span>
-                    </div>
-                    <span
-                      className={`mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        isProposed
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
-                          : isApproved
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                          : 'bg-slate-700 text-slate-300'
-                      }`}
-                    >
-                      {order.status}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Quick 1-Tap Action Bar */}
-                <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => handleExplainOrder(order)}
-                    className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-700"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-teal-400" />
-                    <span>AI Reason</span>
-                  </button>
-
-                  {isProposed && canApprove && (
-                    <div className="flex items-center gap-2">
+                    {/* Quick 1-Tap Action Bar */}
+                    <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
                       <button
-                        disabled={isSubmitting}
-                        onClick={() => handleDecide(order.id, 'reject')}
-                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition border border-slate-700"
+                        onClick={() => handleExplainOrder(order)}
+                        className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-700"
                       >
-                        Reject
+                        <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+                        <span>AI Reason</span>
                       </button>
-                      <button
-                        disabled={isSubmitting}
-                        onClick={() => handleDecide(order.id, 'approve')}
-                        className="px-4 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>Approve Transfer</span>
-                      </button>
+
+                      {isProposed && canApprove && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            disabled={isSubmitting}
+                            onClick={() => handleDecide(order.id, 'reject')}
+                            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition border border-slate-700"
+                          >
+                            Reject
+                          </button>
+                          <button
+                            disabled={isSubmitting}
+                            onClick={() => handleDecide(order.id, 'approve')}
+                            className="px-4 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Approve Transfer</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
       {/* Gemini Advisory Modal (Expandable to Full Screen) */}
