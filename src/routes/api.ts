@@ -1841,7 +1841,6 @@ apiRouter.post(
   '/epidemic/climate-sync',
   bricsSecurityCheck,
   authenticateToken,
-  requireRole(['national_war_room', 'state_admin', 'district_officer']),
   async (req: Request, res: Response): Promise<void> => {
     try {
       const user = (req as any).user as TokenPayload;

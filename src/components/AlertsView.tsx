@@ -1,6 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext.js';
-import { AlertItem, GeminiTransferPlan, ProposedTransferLine } from '../types/client.js';
+import {
+  AlertItem,
+  GeminiTransferPlan,
+  ProposedTransferLine,
+  EpidemicForecastItem,
+} from '../types/client.js';
 import {
   AlertTriangle,
   AlertCircle,
@@ -12,6 +17,14 @@ import {
   RefreshCw,
   Volume2,
   VolumeX,
+  CloudRain,
+  Sliders,
+  TrendingUp,
+  Activity,
+  Flame,
+  Layers,
+  Thermometer,
+  Boxes,
 } from 'lucide-react';
 import { GeminiAdvisoryModal } from './GeminiAdvisoryModal.js';
 
@@ -29,6 +42,9 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
   onProposeTransfer,
 }) => {
   const { user, token, lang } = useAuth();
+  const [activeTab, setActiveTab] = useState<'alerts' | 'epidemic'>('alerts');
+
+  // Stockout alerts modal state
   const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExplaining, setIsExplaining] = useState(false);
@@ -39,6 +55,58 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
     proposedLines: ProposedTransferLine[];
     modelNotice: string;
   } | null>(null);
+
+  // Epidemic forecast state
+  const [epidemics, setEpidemics] = useState<EpidemicForecastItem[]>([]);
+  const [isEpidemicLoading, setIsEpidemicLoading] = useState(false);
+  const [simulatedRainfall, setSimulatedRainfall] = useState(165);
+
+  const fetchEpidemicData = useCallback(async () => {
+    if (!token) return;
+    setIsEpidemicLoading(true);
+    try {
+      const res = await fetch('/v1/epidemic/forecasts', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEpidemics(data.forecasts || []);
+      }
+    } catch (err) {
+      console.error('Failed to load epidemic forecasts:', err);
+    } finally {
+      setIsEpidemicLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchEpidemicData();
+  }, [fetchEpidemicData]);
+
+  const handleSyncClimate = async (rainfallVal: number) => {
+    setSimulatedRainfall(rainfallVal);
+    try {
+      const res = await fetch('/v1/epidemic/climate-sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          district: 'Pune District',
+          rainfallMm: rainfallVal,
+          tempCelsius: 28.5,
+          humidityPct: 85,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEpidemics(data.forecasts || []);
+      }
+    } catch (err) {
+      console.error('Failed to sync climate telemetry:', err);
+    }
+  };
 
   const handleSpeakAlert = (alert: AlertItem) => {
     if ('speechSynthesis' in window) {
@@ -110,171 +178,335 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-4 space-y-4 pb-24">
-      {/* View Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-amber-400" />
-            7-Day Clinical Stockout & Surge Alerts
-          </h2>
-          <p className="text-xs text-slate-400">
-            Automated alerts evaluated against forecast demand & surge multipliers
-          </p>
+    <div className="max-w-4xl mx-auto p-3 sm:p-4 space-y-4 pb-24 text-slate-100">
+      {/* Top Header Card with Sub-tabs */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-teal-400" />
+              <h1 className="text-lg font-bold text-white tracking-tight">
+                AI Early Warning & Epidemic Forecast
+              </h1>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Probabilistic stockout alerts &middot; Climate-linked vector disease projections
+            </p>
+          </div>
+
+          <button
+            onClick={() => {
+              onRefresh();
+              fetchEpidemicData();
+            }}
+            className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition border border-slate-700 self-start sm:self-auto"
+            title="Refresh alerts & forecasts"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading || isEpidemicLoading ? 'animate-spin text-teal-400' : ''}`} />
+          </button>
         </div>
-        <button
-          onClick={onRefresh}
-          className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
-          title="Refresh alerts"
-        >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-teal-400' : ''}`} />
-        </button>
+
+        {/* View Switcher Tabs */}
+        <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-800 flex-wrap">
+          <button
+            onClick={() => setActiveTab('alerts')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
+              activeTab === 'alerts'
+                ? 'bg-teal-600 text-white shadow-sm'
+                : 'bg-slate-800/80 text-slate-400 hover:text-white'
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            <span>Stockout & Surge Alerts</span>
+            {alerts.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold">
+                {alerts.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('epidemic')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
+              activeTab === 'epidemic'
+                ? 'bg-teal-600 text-white shadow-sm'
+                : 'bg-slate-800/80 text-slate-400 hover:text-white'
+            }`}
+          >
+            <CloudRain className="w-3.5 h-3.5 text-sky-400" />
+            <span>Epidemic Outbreak Simulator</span>
+            {epidemics.some((e) => e.alertLevel === 'outbreak_critical') && (
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Alerts List */}
-      {alerts.length === 0 ? (
-        <div className="p-8 text-center rounded-2xl bg-slate-900/60 border border-slate-800">
-          <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-2" />
-          <h3 className="text-sm font-semibold text-slate-200">No Active Stockout Alerts</h3>
-          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-            All Primary Health Centres in this district currently maintain sufficient stock above 7-day forecast demand thresholds.
-          </p>
-        </div>
-      ) : (
+      {/* 1. STOCKOUT ALERTS TAB */}
+      {activeTab === 'alerts' && (
         <div className="space-y-3">
-          {alerts.map((alert) => {
-            const isCritical = alert.severity === 'critical';
+          {alerts.length === 0 ? (
+            <div className="p-8 text-center rounded-2xl bg-slate-900 border border-slate-800">
+              <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-2" />
+              <h3 className="text-sm font-semibold text-slate-200">No Active Stockout Alerts</h3>
+              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                All Primary Health Centres in this district currently maintain sufficient stock above 7-day forecast demand thresholds.
+              </p>
+            </div>
+          ) : (
+            alerts.map((alert) => {
+              const isCritical = alert.severity === 'critical';
+              const stockoutPct = Math.round(alert.stockoutProb7d * 100);
 
-            return (
-              <div
-                key={alert.id}
-                className={`p-4 rounded-xl border transition shadow-lg ${
-                  isCritical
-                    ? 'bg-rose-950/20 border-rose-500/40'
-                    : 'bg-amber-950/20 border-amber-500/40'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-2.5">
-                    {isCritical ? (
-                      <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-                    ) : (
-                      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                    )}
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-sm text-slate-100">
-                          {alert.facilityName}
-                        </span>
-                        <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                          {alert.ruleCode}
-                        </span>
-                        {alert.coldChain && (
-                          <span className="text-[10px] text-blue-300 flex items-center gap-0.5 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
-                            <Snowflake className="w-3 h-3 text-blue-400" /> Cold-Chain
-                          </span>
+              return (
+                <div
+                  key={alert.id}
+                  className={`p-4 rounded-2xl border transition-all ${
+                    isCritical
+                      ? 'bg-rose-950/20 border-rose-500/50 shadow-md shadow-rose-950/20'
+                      : 'bg-slate-900 border-amber-500/30'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`p-2.5 rounded-xl shrink-0 mt-0.5 ${
+                          isCritical ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400'
+                        }`}
+                      >
+                        {isCritical ? (
+                          <AlertTriangle className="w-5 h-5 animate-pulse" />
+                        ) : (
+                          <AlertCircle className="w-5 h-5" />
                         )}
                       </div>
-                      <p className="text-xs text-slate-300 mt-1 font-medium">{alert.message}</p>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                              isCritical ? 'bg-rose-500/30 text-rose-300' : 'bg-amber-500/30 text-amber-300'
+                            }`}
+                          >
+                            {alert.severity} &middot; {alert.ruleCode}
+                          </span>
+                          {alert.coldChain && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-sky-500/20 text-sky-300 flex items-center gap-1">
+                              <Snowflake className="w-3 h-3" />
+                              2°C–8°C
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 className="text-sm font-bold text-slate-100">
+                          {alert.facilityName} &middot; <span className="text-teal-400">{alert.skuName}</span>
+                        </h3>
+                        <p className="text-xs text-slate-300">{alert.message}</p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleSpeakAlert(alert)}
+                      className={`p-2 rounded-xl transition shrink-0 ${
+                        speakingAlertId === alert.id
+                          ? 'bg-teal-500 text-white animate-pulse'
+                          : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+                      }`}
+                      title="Listen to audio alert readout"
+                    >
+                      {speakingAlertId === alert.id ? (
+                        <VolumeX className="w-4 h-4" />
+                      ) : (
+                        <Volume2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Metrics Bar */}
+                  <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-800/80 text-xs">
+                    <div className="p-2 rounded-xl bg-slate-800/60">
+                      <span className="text-[10px] text-slate-400 block">Current Stock</span>
+                      <span className="text-sm font-bold text-white font-mono">{alert.currentQty} units</span>
+                    </div>
+
+                    <div className="p-2 rounded-xl bg-slate-800/60">
+                      <span className="text-[10px] text-slate-400 block">7-Day Demand</span>
+                      <span className="text-sm font-bold text-slate-200 font-mono">{alert.demand7d} units</span>
+                    </div>
+
+                    <div className="p-2 rounded-xl bg-slate-800/60">
+                      <span className="text-[10px] text-slate-400 block">Stockout Risk</span>
+                      <span
+                        className={`text-sm font-bold font-mono ${
+                          stockoutPct >= 80
+                            ? 'text-rose-400'
+                            : stockoutPct >= 50
+                            ? 'text-amber-400'
+                            : 'text-emerald-400'
+                        }`}
+                      >
+                        {stockoutPct}%
+                      </span>
                     </div>
                   </div>
 
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                      isCritical
-                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                    }`}
-                  >
-                    {alert.severity}
-                  </span>
-                </div>
-
-                {/* Stock telemetry summary */}
-                <div className="mt-3 pt-2.5 border-t border-slate-700/40 grid grid-cols-3 gap-2 text-center text-xs">
-                  <div className="p-2 rounded-lg bg-slate-800/60">
-                    <span className="text-[10px] text-slate-400 block">Current Stock</span>
-                    <span className="font-bold text-slate-200">{alert.currentQty}</span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-slate-800/60">
-                    <span className="text-[10px] text-slate-400 block">7d Demand</span>
-                    <span className="font-bold text-slate-200">~{Math.round(alert.demand7d)}</span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-slate-800/60">
-                    <span className="text-[10px] text-slate-400 block">Stockout Prob</span>
-                    <span className="font-bold text-rose-400">
-                      {(alert.stockoutProb7d * 100).toFixed(0)}%
+                  {/* Action Row */}
+                  <div className="flex items-center justify-between mt-3 pt-2">
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      Outbreak Mult: {alert.outbreakMultiplier}x
                     </span>
-                  </div>
-                </div>
 
-                {/* Action: AI Explain & Propose Transfer */}
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    {alert.modelNotice}
-                  </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleExplainAlert(alert)}
+                        className="px-3 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 font-semibold text-xs flex items-center gap-1.5 transition border border-teal-500/30"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+                        <span>AI Advisory</span>
+                      </button>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleSpeakAlert(alert)}
-                      className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition ${
-                        speakingAlertId === alert.id
-                          ? 'bg-teal-500 text-slate-950 border-teal-400 animate-pulse'
-                          : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                      }`}
-                      title="Listen to audible alert readout in regional language"
-                    >
-                      {speakingAlertId === alert.id ? (
-                        <VolumeX className="w-3.5 h-3.5 text-slate-950" />
-                      ) : (
-                        <Volume2 className="w-3.5 h-3.5 text-teal-400" />
-                      )}
-                      <span className="hidden sm:inline">
-                        {speakingAlertId === alert.id ? 'Stop Voice' : 'Audio Alert'}
-                      </span>
-                    </button>
-
-                    <button
-                      onClick={() => handleExplainAlert(alert)}
-                      className="px-3 py-1.5 rounded-lg bg-teal-500/15 hover:bg-teal-500/25 border border-teal-500/30 text-teal-300 text-xs font-semibold flex items-center gap-1.5 transition"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-teal-400" />
-                      Gemini Advisory
-                    </button>
-
-                    {user?.role !== 'phc_nurse' && (
                       <button
                         onClick={() => onProposeTransfer(alert.facilityId, alert.skuId)}
-                        className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold flex items-center gap-1 transition shadow shadow-teal-500/20"
+                        className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-semibold text-xs flex items-center gap-1.5 transition shadow-sm"
                       >
-                        Propose Transfer
+                        <span>Dispatch Transfer</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       )}
 
-      {/* Gemini Structured Explanation Modal (Expandable to full size) */}
-      <GeminiAdvisoryModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedAlert(null);
-        }}
-        alert={selectedAlert}
-        isLoading={isExplaining}
-        error={advisoryError}
-        explanationData={explanationData}
-        onRetry={() => selectedAlert && handleExplainAlert(selectedAlert)}
-        onConfirmTransfer={onProposeTransfer}
-        canProposeTransfer={user?.role !== 'phc_nurse'}
-      />
+      {/* 2. EPIDEMIC OUTBREAK FORECAST TAB */}
+      {activeTab === 'epidemic' && (
+        <div className="space-y-4">
+          {/* Climate Simulation Slider */}
+          <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-teal-400" />
+                <span className="text-sm font-bold text-white">Monsoon Precipitation & Transmission Simulator</span>
+              </div>
+              <span className="text-xs font-mono font-bold text-teal-300">
+                {simulatedRainfall} mm / week
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Drag to simulate rainfall surge. The algorithmic engine dynamically recomputes vector breeding indices, transmission velocity ($R_0$), and pre-allocated essential medicine buffers.
+            </p>
+
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-500">Low (30mm)</span>
+              <input
+                type="range"
+                min="30"
+                max="350"
+                step="10"
+                value={simulatedRainfall}
+                onChange={(e) => handleSyncClimate(Number(e.target.value))}
+                className="flex-1 accent-teal-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
+              />
+              <span className="text-xs text-rose-400 font-semibold">Flood / Surge (350mm)</span>
+            </div>
+          </div>
+
+          {/* Disease Outbreak Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {epidemics.map((item) => {
+              const isCritical = item.alertLevel === 'outbreak_critical';
+              const isWarning = item.alertLevel === 'warning';
+
+              return (
+                <div
+                  key={item.id}
+                  className={`p-4 rounded-2xl border space-y-3 shadow-md ${
+                    isCritical
+                      ? 'bg-rose-950/20 border-rose-500/50'
+                      : isWarning
+                      ? 'bg-slate-900 border-amber-500/40'
+                      : 'bg-slate-900 border-slate-800'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-teal-400" />
+                        <h3 className="text-base font-bold text-white">{item.pathogen}</h3>
+                      </div>
+                      <span className="text-xs text-slate-400">{item.district}</span>
+                    </div>
+
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        isCritical
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse'
+                          : isWarning
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      }`}
+                    >
+                      {item.alertLevel.replace('_', ' ')}
+                    </span>
+                  </div>
+
+                  {/* Key Stats */}
+                  <div className="grid grid-cols-3 gap-2 pt-1 text-xs">
+                    <div className="p-2 rounded-xl bg-slate-800/60">
+                      <span className="text-[10px] text-slate-400 block">Surge Mult</span>
+                      <span className="text-sm font-bold text-teal-300 font-mono">{item.surgeMultiplier}x</span>
+                    </div>
+                    <div className="p-2 rounded-xl bg-slate-800/60">
+                      <span className="text-[10px] text-slate-400 block">R₀ Rate</span>
+                      <span className="text-sm font-bold text-white font-mono">{item.r0Value}</span>
+                    </div>
+                    <div className="p-2 rounded-xl bg-slate-800/60">
+                      <span className="text-[10px] text-slate-400 block">14d Projected</span>
+                      <span className="text-sm font-bold text-amber-300 font-mono">{item.predicted14dCases}</span>
+                    </div>
+                  </div>
+
+                  {/* Pre-allocated Buffers */}
+                  <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-800 text-xs space-y-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                      Recommended Pre-Allocated Medicines
+                    </span>
+                    {item.recommendedBufferPreAllocation.map((rec) => (
+                      <div key={rec.skuCode} className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-300 truncate max-w-[180px]">{rec.skuName}</span>
+                        <span className="font-bold font-mono text-teal-300 shrink-0">
+                          +{rec.recommendedUnits} units
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* AI Epidemiological Note */}
+                  <p className="text-[11px] text-slate-400 italic bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/60">
+                    "{item.aiEpidemiologicalNote}"
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Gemini Advisory Modal */}
+      {selectedAlert && (
+        <GeminiAdvisoryModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          alert={selectedAlert}
+          explanationData={explanationData}
+          isLoading={isExplaining}
+          error={advisoryError}
+        />
+      )}
     </div>
   );
 };

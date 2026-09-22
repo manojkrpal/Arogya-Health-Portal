@@ -9,7 +9,6 @@ import {
   ProposedTransferLine,
 } from '../types/client.js';
 import { ColdChainView } from './ColdChainView.js';
-import { AutonomousLogisticsView } from './AutonomousLogisticsView.js';
 import {
   ArrowLeftRight,
   CheckCircle2,
@@ -23,7 +22,6 @@ import {
   MapPin,
   Sparkles,
   Thermometer,
-  Plane,
 } from 'lucide-react';
 import { GeminiAdvisoryModal } from './GeminiAdvisoryModal.js';
 
@@ -33,7 +31,7 @@ interface TransfersViewProps {
   skus: SkuItem[];
   onRefresh: () => void;
   isLoading: boolean;
-  initialSubTab?: 'transfers' | 'coldchain' | 'logistics';
+  initialSubTab?: 'transfers' | 'coldchain';
 }
 
 export const TransfersView: React.FC<TransfersViewProps> = ({
@@ -45,7 +43,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
   initialSubTab = 'transfers',
 }) => {
   const { user, token } = useAuth();
-  const [activeSubTab, setActiveSubTab] = useState<'transfers' | 'coldchain' | 'logistics'>(initialSubTab);
+  const [activeSubTab, setActiveSubTab] = useState<'transfers' | 'coldchain'>(initialSubTab);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -245,24 +243,11 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
             <Thermometer className="w-3.5 h-3.5" />
             <span>Cold-Chain IoT</span>
           </button>
-          <button
-            onClick={() => setActiveSubTab('logistics')}
-            className={`px-3 py-1.5 rounded-lg transition font-medium flex items-center gap-1.5 ${
-              activeSubTab === 'logistics'
-                ? 'bg-teal-600 text-white font-bold'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Plane className="w-3.5 h-3.5" />
-            <span>Drone Corridors</span>
-          </button>
         </div>
       </div>
 
       {activeSubTab === 'coldchain' ? (
         <ColdChainView />
-      ) : activeSubTab === 'logistics' ? (
-        <AutonomousLogisticsView />
       ) : (
         <>
           {/* Action row for Transfers */}

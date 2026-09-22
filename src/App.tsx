@@ -8,6 +8,7 @@ import { AlertsView } from './components/AlertsView.js';
 import { TransfersView } from './components/TransfersView.js';
 import { FederationView } from './components/FederationView.js';
 import { StockView } from './components/StockView.js';
+import { NationalSupplyView } from './components/NationalSupplyView.js';
 import {
   FacilitySnapshot,
   AlertItem,
@@ -146,28 +147,41 @@ function ArogyaNetApp() {
           />
         )}
 
-        {activeTab === 'stock' && user?.role !== 'brics_analyst' && (
-          <StockView
-            facilities={facilities}
-            onRefreshAll={refreshData}
-            outbreakMultiplier={outbreakMultiplier}
-            onSetOutbreakMultiplier={handleSetOutbreakMultiplier}
-          />
+        {activeTab === 'grid' && (
+          <NationalSupplyView />
         )}
 
-        {(activeTab === 'transfers' || activeTab === 'coldchain' || activeTab === 'logistics') && user?.role !== 'brics_analyst' && (
+        {(activeTab === 'transfers' || activeTab === 'coldchain') && user?.role !== 'brics_analyst' && (
           <TransfersView
             transfers={transfers}
             facilities={facilities}
             skus={skus}
             onRefresh={refreshData}
             isLoading={isLoading}
-            initialSubTab={activeTab === 'coldchain' ? 'coldchain' : activeTab === 'logistics' ? 'logistics' : 'transfers'}
+            initialSubTab={activeTab === 'coldchain' ? 'coldchain' : 'transfers'}
           />
         )}
 
-        {(activeTab === 'federation' || activeTab === 'audit') && (
-          <FederationView initialSubTab={activeTab === 'audit' ? 'audit' : 'indices'} />
+        {activeTab === 'stock' && (
+          <div className="space-y-6">
+            <StockView
+              facilities={facilities}
+              onRefreshAll={refreshData}
+              outbreakMultiplier={outbreakMultiplier}
+              onSetOutbreakMultiplier={handleSetOutbreakMultiplier}
+            />
+            <div className="max-w-6xl mx-auto px-3 sm:px-5">
+              <FederationView initialSubTab="indices" />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'federation' && (
+          <FederationView initialSubTab="indices" />
+        )}
+
+        {activeTab === 'audit' && (
+          <FederationView initialSubTab="audit" />
         )}
 
         {/* Facility Detail Slide-over Drawer */}

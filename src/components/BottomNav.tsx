@@ -4,13 +4,13 @@ import {
   MapPin,
   Bell,
   Package,
-  ArrowLeftRight,
   Globe2,
   Lock,
   Truck,
+  Building2,
 } from 'lucide-react';
 
-export type TabType = 'map' | 'alerts' | 'stock' | 'transfers' | 'coldchain' | 'logistics' | 'federation' | 'audit';
+export type TabType = 'map' | 'alerts' | 'stock' | 'transfers' | 'coldchain' | 'grid' | 'federation' | 'audit';
 
 interface BottomNavProps {
   activeTab: TabType;
@@ -28,7 +28,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const { user } = useAuth();
   const isBrics = user?.role === 'brics_analyst';
 
-  // Primary 5 Navigation Items
+  // Primary 5 Navigation Hubs
   const navItems = [
     {
       id: 'map',
@@ -46,11 +46,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       activeMatcher: (tab: TabType) => tab === 'alerts',
     },
     {
-      id: 'stock',
-      label: 'Stock',
-      icon: Package,
-      restrictedForBrics: true,
-      activeMatcher: (tab: TabType) => tab === 'stock',
+      id: 'grid',
+      label: 'National Grid',
+      icon: Building2,
+      restrictedForBrics: false,
+      activeMatcher: (tab: TabType) => tab === 'grid',
     },
     {
       id: 'transfers',
@@ -58,14 +58,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       icon: Truck,
       badge: transferCount,
       restrictedForBrics: true,
-      activeMatcher: (tab: TabType) => ['transfers', 'coldchain', 'logistics'].includes(tab),
+      activeMatcher: (tab: TabType) => ['transfers', 'coldchain'].includes(tab),
     },
     {
-      id: 'federation',
-      label: 'BRICS',
-      icon: Globe2,
+      id: 'stock',
+      label: 'Stock & BRICS',
+      icon: Package,
       restrictedForBrics: false,
-      activeMatcher: (tab: TabType) => ['federation', 'audit'].includes(tab),
+      activeMatcher: (tab: TabType) => ['stock', 'federation', 'audit'].includes(tab),
     },
   ];
 
