@@ -222,32 +222,30 @@ export const AutonomousLogisticsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5 animate-fade-in pb-16">
+    <div className="p-3 sm:p-5 max-w-7xl mx-auto space-y-4 pb-24">
       {/* Top Header Card */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl backdrop-blur">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl backdrop-blur">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-mono text-xs font-bold border border-teal-500/30">
-                LEVEL 3
-              </span>
-              <h1 className="text-xl font-black text-slate-100 tracking-tight">
-                Autonomous Logistics & Epidemic AI Grid
+              <Plane className="w-6 h-6 text-teal-400" />
+              <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                Logistics & Epidemic Grid
               </h1>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
-              BVLoS Aerial Cold-Chain Drones • IMD Climate Correlation • Central Procurement (CDW) • National Grid
+            <p className="text-xs text-slate-400 mt-0.5">
+              Drone Deliveries • Climate Surge Forecasts • Central Warehouse POs
             </p>
           </div>
 
           {/* Action Tools */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setShowTriageModal(true)}
-              className="px-3 py-2 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/30 text-xs font-bold transition flex items-center gap-2"
+              className="px-3.5 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 text-teal-200 border border-teal-500/40 text-xs font-semibold transition flex items-center gap-1.5"
             >
-              <Stethoscope className="w-3.5 h-3.5" />
-              <span>Clinical AI Triage</span>
+              <Stethoscope className="w-3.5 h-3.5 text-teal-400" />
+              <span>AI Triage</span>
             </button>
             <button
               onClick={() => fetchData()}
@@ -261,17 +259,17 @@ export const AutonomousLogisticsView: React.FC = () => {
         </div>
 
         {/* Sub-Navigation Tabs */}
-        <div className="flex items-center gap-1 sm:gap-2 mt-5 border-t border-slate-800/80 pt-4 overflow-x-auto">
+        <div className="flex items-center gap-1.5 sm:gap-2 mt-4 border-t border-slate-800 pt-3 overflow-x-auto">
           <button
             onClick={() => setSubTab('drones')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shrink-0 ${
               subTab === 'drones'
-                ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/20'
-                : 'bg-slate-800/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'bg-teal-600 text-white shadow-sm'
+                : 'bg-slate-800/60 text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
             <Plane className="w-3.5 h-3.5" />
-            <span>Drone Aerial Fleet</span>
+            <span>Drones</span>
             {flights.filter((f) => f.status === 'in_flight').length > 0 && (
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
             )}
@@ -279,26 +277,26 @@ export const AutonomousLogisticsView: React.FC = () => {
 
           <button
             onClick={() => setSubTab('epidemic')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shrink-0 ${
               subTab === 'epidemic'
-                ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/20'
-                : 'bg-slate-800/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'bg-teal-600 text-white shadow-sm'
+                : 'bg-slate-800/60 text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
             <CloudRain className="w-3.5 h-3.5" />
-            <span>Epidemic Climate AI</span>
+            <span>Epidemic Forecast</span>
           </button>
 
           <button
             onClick={() => setSubTab('procurement')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shrink-0 ${
               subTab === 'procurement'
-                ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/20'
-                : 'bg-slate-800/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'bg-teal-600 text-white shadow-sm'
+                : 'bg-slate-800/60 text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
             <ShoppingCart className="w-3.5 h-3.5" />
-            <span>Central Drug Procurement</span>
+            <span>Drug Orders</span>
             <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-900 text-slate-300">
               {purchaseOrders.length}
             </span>
@@ -306,14 +304,14 @@ export const AutonomousLogisticsView: React.FC = () => {
 
           <button
             onClick={() => setSubTab('national_grid')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shrink-0 ${
               subTab === 'national_grid'
-                ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/20'
-                : 'bg-slate-800/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'bg-teal-600 text-white shadow-sm'
+                : 'bg-slate-800/60 text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
             <Globe className="w-3.5 h-3.5" />
-            <span>National Multi-State Grid</span>
+            <span>National Grid</span>
           </button>
         </div>
       </div>

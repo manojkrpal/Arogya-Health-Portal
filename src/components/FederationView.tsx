@@ -47,24 +47,24 @@ export const FederationView: React.FC = () => {
   }, [token]);
 
   return (
-    <div className="max-w-2xl mx-auto p-4 space-y-4 pb-24">
+    <div className="p-3 sm:p-5 max-w-4xl mx-auto space-y-4 pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-            <Globe2 className="w-5 h-5 text-purple-400" />
-            BRICS Epidemiological Federation
+          <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+            <Globe2 className="w-6 h-6 text-purple-400" />
+            Global Health Federation
           </h2>
-          <p className="text-xs text-slate-400">
-            Cross-national sovereign health indices & shared prior models
+          <p className="text-xs text-slate-400 mt-0.5">
+            Cross-national sovereign health indices & shared models
           </p>
         </div>
 
         {/* Sub-tab pills */}
-        <div className="flex items-center p-1 bg-slate-800/80 rounded-lg border border-slate-700 text-xs">
+        <div className="flex items-center p-1 bg-slate-900 rounded-xl border border-slate-800 text-xs self-start sm:self-auto">
           <button
             onClick={() => setActiveSubTab('indices')}
-            className={`px-3 py-1 rounded-md transition ${
+            className={`px-3 py-1.5 rounded-lg transition font-medium ${
               activeSubTab === 'indices'
                 ? 'bg-purple-600 text-white font-bold'
                 : 'text-slate-400 hover:text-white'
@@ -74,7 +74,7 @@ export const FederationView: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveSubTab('model-card')}
-            className={`px-3 py-1 rounded-md transition ${
+            className={`px-3 py-1.5 rounded-lg transition font-medium ${
               activeSubTab === 'model-card'
                 ? 'bg-purple-600 text-white font-bold'
                 : 'text-slate-400 hover:text-white'
@@ -85,15 +85,15 @@ export const FederationView: React.FC = () => {
         </div>
       </div>
 
-      {/* Sovereign Privacy Banner (Non-negotiable requirement) */}
-      <div className="p-3 rounded-xl bg-purple-950/25 border border-purple-500/30 text-xs text-purple-200 flex items-start gap-2.5">
-        <ShieldCheck className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-        <div className="space-y-0.5">
-          <span className="font-bold text-slate-100 block">
-            Zero PHI / Raw Facility Inventory Exported
+      {/* Sovereign Privacy Banner */}
+      <div className="p-3.5 rounded-2xl bg-purple-950/20 border border-purple-500/30 text-xs text-purple-200 flex items-center gap-3">
+        <ShieldCheck className="w-5 h-5 text-purple-400 shrink-0" />
+        <div>
+          <span className="font-bold text-white block">
+            Aggregated Sovereign Indices
           </span>
-          <p className="text-[11px] text-purple-300/80 leading-relaxed">
-            By treaty specification, this federation view accesses aggregated sovereign tenant indices only. No patient names, staff rosters, or facility-level stock quantities leave national borders.
+          <p className="text-[11px] text-purple-300/80 mt-0.5">
+            Privacy-preserving treaty: only high-level surplus and epidemic rates are shared.
           </p>
         </div>
       </div>

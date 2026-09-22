@@ -196,32 +196,30 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-4 space-y-4 pb-24">
+    <div className="p-3 sm:p-5 max-w-4xl mx-auto space-y-4 pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-            <ArrowLeftRight className="w-5 h-5 text-teal-400" />
-            Cross-Facility Medicine Transfers
+          <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+            <ArrowLeftRight className="w-6 h-6 text-teal-400" />
+            Medicine Transfers
           </h2>
-          <p className="text-xs text-slate-400">
-            Human-in-the-loop: orders require explicit officer approval before stock moves
-          </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {canPropose && (
             <button
               onClick={() => setShowModal(true)}
-              className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow shadow-teal-500/20"
+              className="px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
             >
-              <Plus className="w-3.5 h-3.5" />
-              Propose Transfer
+              <Plus className="w-4 h-4" />
+              <span>New Transfer</span>
             </button>
           )}
           <button
             onClick={onRefresh}
-            className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+            className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition border border-slate-700"
+            title="Refresh transfers"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-teal-400' : ''}`} />
           </button>
@@ -243,11 +241,11 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
 
       {/* Transfer Orders List */}
       {transfers.length === 0 ? (
-        <div className="p-8 text-center rounded-2xl bg-slate-900/60 border border-slate-800">
+        <div className="p-12 text-center rounded-2xl bg-slate-900/60 border border-slate-800">
           <Truck className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-          <h3 className="text-sm font-semibold text-slate-300">No Transfer Orders Logged</h3>
-          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-            When clinics fall below 7-day stockout risk thresholds, use the optimizer to propose inter-PHC replenishments.
+          <h3 className="text-sm font-semibold text-slate-300">No Transfers Needed</h3>
+          <p className="text-xs text-slate-500 mt-1">
+            All PHCs currently maintain safe medicine buffer stock.
           </p>
         </div>
       ) : (
@@ -255,100 +253,67 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
           {transfers.map((order) => {
             const isProposed = order.status === 'proposed';
             const isApproved = order.status === 'approved';
-            const isRejected = order.status === 'rejected';
 
             return (
               <div
                 key={order.id}
-                className={`p-4 rounded-xl border transition shadow-lg ${
+                className={`p-4 rounded-2xl border transition-all ${
                   isProposed
-                    ? 'bg-slate-800/90 border-teal-500/40'
+                    ? 'bg-slate-900/95 border-amber-500/40 shadow-md'
                     : isApproved
-                    ? 'bg-slate-900/70 border-emerald-500/30'
-                    : 'bg-slate-900/50 border-slate-800'
+                    ? 'bg-slate-900/90 border-emerald-500/40'
+                    : 'bg-slate-900/70 border-slate-800'
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] uppercase px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                        {order.skuCode}
-                      </span>
-                      {order.coldChain && (
-                        <span className="text-[10px] text-blue-300 flex items-center gap-0.5 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
-                          <Snowflake className="w-3 h-3 text-blue-400" /> Cold-Chain 2-8°C
-                        </span>
-                      )}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
+                        order.coldChain
+                          ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
+                          : 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
+                      }`}
+                    >
+                      {order.coldChain ? <Snowflake className="w-5 h-5" /> : <Truck className="w-5 h-5" />}
                     </div>
-                    <h3 className="text-sm font-bold text-slate-100 mt-1">{order.skuName}</h3>
-                  </div>
 
-                  {/* Status Badge */}
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
-                      isProposed
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
-                        : isApproved
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                        : 'bg-slate-700 text-slate-400 border border-slate-600'
-                    }`}
-                  >
-                    {isProposed ? (
-                      <Clock className="w-3 h-3" />
-                    ) : isApproved ? (
-                      <CheckCircle2 className="w-3 h-3" />
-                    ) : (
-                      <XCircle className="w-3 h-3" />
-                    )}
-                    {order.status}
-                  </span>
-                </div>
-
-                {/* Route: From -> To */}
-                <div className="mt-3 p-3 rounded-lg bg-slate-900/80 border border-slate-700/60 flex items-center justify-between text-xs">
-                  <div className="flex-1">
-                    <span className="text-[10px] text-slate-400 block">Donor Facility</span>
-                    <strong className="text-slate-200">{order.fromFacilityName}</strong>
-                    <div className="text-[10px] text-slate-400 mt-0.5">
-                      On-hand: {order.donorCurrentQty} &bull; 7d Demand: {order.donorDemand7d}
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-white truncate">{order.skuName}</h3>
+                      <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                        <span className="text-slate-300 font-medium truncate">{order.fromFacilityName}</span>
+                        <ArrowLeftRight className="w-3 h-3 text-teal-400 shrink-0" />
+                        <span className="text-teal-300 font-medium truncate">{order.toFacilityName}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="px-2 text-center">
-                    <ArrowLeftRight className="w-4 h-4 text-teal-400 mx-auto" />
-                    <span className="text-[10px] text-slate-400 block mt-0.5">
-                      {order.distanceKm} km (~{order.etaHours}h)
+                  {/* Quantity & Status Badge */}
+                  <div className="text-right shrink-0 flex flex-col items-end">
+                    <div className="text-lg font-bold text-white">
+                      +{order.qty} <span className="text-xs text-slate-400">{order.unit}</span>
+                    </div>
+                    <span
+                      className={`mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        isProposed
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
+                          : isApproved
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                          : 'bg-slate-700 text-slate-300'
+                      }`}
+                    >
+                      {order.status}
                     </span>
                   </div>
-
-                  <div className="flex-1 text-right">
-                    <span className="text-[10px] text-slate-400 block">Recipient Facility</span>
-                    <strong className="text-teal-300">{order.toFacilityName}</strong>
-                    <div className="text-[10px] font-bold text-emerald-400 mt-0.5">
-                      +{order.qty} {order.unit}
-                    </div>
-                  </div>
                 </div>
 
-                {/* Donor cover verification banner */}
-                <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-400 px-1">
-                  <span className="flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-teal-400" />
-                    Donor retains &ge; 7 days of forecast demand
-                  </span>
-                  <span className="font-mono text-[10px] text-slate-500">
-                    {order.createdAt ? new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                  </span>
-                </div>
-
-                {/* Action Controls & Gemini Advisory */}
-                <div className="mt-3 pt-3 border-t border-slate-700/60 flex items-center justify-between gap-2 flex-wrap">
+                {/* Quick 1-Tap Action Bar */}
+                <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
                   <button
                     onClick={() => handleExplainOrder(order)}
-                    className="px-2.5 py-1.5 rounded-lg bg-teal-500/15 hover:bg-teal-500/25 border border-teal-500/30 text-teal-300 text-xs font-semibold flex items-center gap-1.5 transition"
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-700"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-teal-400" />
-                    Gemini Advisory (EN/HI)
+                    <span>AI Reason</span>
                   </button>
 
                   {isProposed && canApprove && (
@@ -356,17 +321,17 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
                       <button
                         disabled={isSubmitting}
                         onClick={() => handleDecide(order.id, 'reject')}
-                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
+                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition border border-slate-700"
                       >
                         Reject
                       </button>
                       <button
                         disabled={isSubmitting}
                         onClick={() => handleDecide(order.id, 'approve')}
-                        className="px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow shadow-teal-500/20"
+                        className="px-4 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Approve & Execute Stock Transfer
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Approve Transfer</span>
                       </button>
                     </div>
                   )}
