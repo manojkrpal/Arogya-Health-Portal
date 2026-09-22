@@ -8,6 +8,7 @@ import {
 import {
   X,
   Bed,
+  HeartPulse,
   Users,
   Snowflake,
   Plus,
@@ -19,6 +20,9 @@ import {
   ShieldCheck,
   Building2,
   Calendar,
+  Edit2,
+  Trash2,
+  Save,
 } from 'lucide-react';
 
 interface FacilityDrawerProps {
@@ -41,21 +45,58 @@ export const FacilityDrawer: React.FC<FacilityDrawerProps> = ({
   const [savingSkuId, setSavingSkuId] = useState<string | null>(null);
   const [saveSuccessSkuId, setSaveSuccessSkuId] = useState<string | null>(null);
 
-  // Bed and attendance quick editing state for Nurse
+  // Bed, ICU and attendance editing state
   const [bedsAvailable, setBedsAvailable] = useState<number>(0);
+  const [bedsTotal, setBedsTotal] = useState<number>(0);
+  const [icuAvailable, setIcuAvailable] = useState<number>(0);
+  const [icuTotal, setIcuTotal] = useState<number>(0);
   const [nursesPresent, setNursesPresent] = useState<number>(0);
+  const [doctorsPresent, setDoctorsPresent] = useState<number>(0);
+  const [anmsPresent, setAnmsPresent] = useState<number>(0);
+  const [oxygenCylinders, setOxygenCylinders] = useState<number>(0);
   const [isUpdatingMeta, setIsUpdatingMeta] = useState<boolean>(false);
+  const [metaSavedNotice, setMetaSavedNotice] = useState<boolean>(false);
+
+  // Facility Profile Editing Modal state
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  const [editName, setEditName] = useState<string>('');
+  const [editCode, setEditCode] = useState<string>('');
+  const [editLevel, setEditLevel] = useState<string>('PHC');
+  const [editDistrict, setEditDistrict] = useState<string>('');
+  const [editLat, setEditLat] = useState<number>(0);
+  const [editLng, setEditLng] = useState<number>(0);
+  const [editColdChain, setEditColdChain] = useState<boolean>(true);
+  const [isSavingProfile, setIsSavingProfile] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const canEdit =
     user?.role === 'district_officer' ||
     user?.role === 'national_war_room' ||
+    user?.role === 'state_admin' ||
     (user?.role === 'phc_nurse' && user?.facilityId === facility?.id);
 
   // Fetch full details for facility
   useEffect(() => {
     if (!facility) return;
-    setBedsAvailable(facility.capacity.bedsAvailable);
-    setNursesPresent(facility.attendance.nursesPresent);
+    const cap = facility.capacity as any;
+    const att = facility.attendance as any;
+    setBedsAvailable(cap.bedsAvailable ?? 0);
+    setBedsTotal(cap.bedsTotal ?? 0);
+    setIcuAvailable(cap.icuAvailable ?? 0);
+    setIcuTotal(cap.icuTotal ?? 2);
+    setOxygenCylinders(cap.oxygenCylinders ?? 4);
+    setNursesPresent(att.nursesPresent ?? 0);
+    setDoctorsPresent(att.doctorsPresent ?? 0);
+    setAnmsPresent(att.anmsPresent ?? 0);
+
+    // Populate edit state
+    setEditName(facility.name || '');
+    setEditCode(facility.code || '');
+    setEditLevel(facility.level || 'PHC');
+    setEditDistrict(facility.district || 'Pune Rural');
+    setEditLat(facility.lat || 18.65);
+    setEditLng(facility.lng || 74.15);
+    setEditColdChain(Boolean(facility.coldChainCapable));
 
     async function fetchFacilityData() {
       setIsLoading(true);
@@ -76,9 +117,63 @@ export const FacilityDrawer: React.FC<FacilityDrawerProps> = ({
     }
 
     fetchFacilityData();
-  }, [facility?.id, token]);
+  }, [facility?.id, facility, token]);
 
   if (!facility) return null;
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!facility || !token) return;
+    setIsSavingProfile(true);
+    try {
+      const res = await fetch(`/v1/facilities/${facility.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: editName,
+          code: editCode,
+          level: editLevel,
+          district: editDistrict,
+          lat: editLat,
+          lng: editLng,
+          coldChainCapable: editColdChain,
+        }),
+      });
+      if (res.ok) {
+        setShowEditModal(false);
+        setMetaSavedNotice(true);
+        setTimeout(() => setMetaSavedNotice(false), 2500);
+        onRefreshMap();
+      }
+    } catch (err) {
+      console.error('Failed to save facility profile:', err);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleDeleteFacility = async () => {
+    if (!facility || !token) return;
+    if (!window.confirm(`Are you sure you want to delete and decommission ${facility.name}?`)) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/v1/facilities/${facility.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        onRefreshMap();
+        onClose();
+      }
+    } catch (err) {
+      console.error('Failed to delete facility:', err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Handle nurse rapid stock stepper (+ / -) with instant auto-save
   const handleAdjustStock = async (skuId: string, delta: number) => {
@@ -119,47 +214,47 @@ export const FacilityDrawer: React.FC<FacilityDrawerProps> = ({
     }
   };
 
-  // Quick save for bed count
-  const handleSaveCapacity = async () => {
+  // Quick save for all facility capacity, ICU & staff metrics
+  const handleSaveMeta = async (updates?: Partial<{
+    bedsAvailable: number;
+    bedsTotal: number;
+    icuAvailable: number;
+    icuTotal: number;
+    nursesPresent: number;
+    doctorsPresent: number;
+    anmsPresent: number;
+    oxygenCylinders: number;
+  }>) => {
     setIsUpdatingMeta(true);
+    const payload = {
+      bedsAvailable: updates?.bedsAvailable ?? bedsAvailable,
+      bedsTotal: updates?.bedsTotal ?? bedsTotal,
+      bedsOccupied: Math.max(0, (updates?.bedsTotal ?? bedsTotal) - (updates?.bedsAvailable ?? bedsAvailable)),
+      icuAvailable: updates?.icuAvailable ?? icuAvailable,
+      icuTotal: updates?.icuTotal ?? icuTotal,
+      icuOccupied: Math.max(0, (updates?.icuTotal ?? icuTotal) - (updates?.icuAvailable ?? icuAvailable)),
+      oxygenCylinders: updates?.oxygenCylinders ?? oxygenCylinders,
+      nursesPresent: updates?.nursesPresent ?? nursesPresent,
+      doctorsPresent: updates?.doctorsPresent ?? doctorsPresent,
+      anmsPresent: updates?.anmsPresent ?? anmsPresent,
+    };
+
     try {
-      await fetch('/v1/capacity', {
+      const res = await fetch(`/v1/facilities/${facility.id}/meta`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          facilityId: facility.id,
-          bedsAvailable,
-          bedsTotal: facility.capacity.bedsTotal,
-        }),
+        body: JSON.stringify(payload),
       });
-      onRefreshMap();
-    } finally {
-      setIsUpdatingMeta(false);
-    }
-  };
-
-  // Quick save for nurse count
-  const handleSaveAttendance = async () => {
-    setIsUpdatingMeta(true);
-    try {
-      await fetch('/v1/attendance', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          facilityId: facility.id,
-          nursesPresent,
-          doctorsPresent: facility.attendance.doctorsPresent,
-          anmsPresent: facility.attendance.anmsPresent,
-          rosterNurses: facility.attendance.rosterNurses,
-        }),
-      });
-      onRefreshMap();
+      if (res.ok) {
+        setMetaSavedNotice(true);
+        setTimeout(() => setMetaSavedNotice(false), 2000);
+        onRefreshMap();
+      }
+    } catch (err) {
+      console.error('Failed to update facility meta:', err);
     } finally {
       setIsUpdatingMeta(false);
     }
@@ -187,7 +282,18 @@ export const FacilityDrawer: React.FC<FacilityDrawerProps> = ({
                 </span>
               )}
             </div>
-            <h2 className="text-lg font-bold text-slate-100 mt-1">{facility.name}</h2>
+            <div className="flex items-center gap-2 mt-1">
+              <h2 className="text-lg font-bold text-slate-100">{facility.name}</h2>
+              {canEdit && (
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-teal-300 transition"
+                  title="Edit facility profile and location in database"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
             <p className="text-xs text-slate-400">
               {facility.district} District &bull; {facility.code}
             </p>
@@ -202,79 +308,202 @@ export const FacilityDrawer: React.FC<FacilityDrawerProps> = ({
 
         {/* Drawer Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20">
-          {/* Real-time Capacity & Attendance quick tiles */}
-          <div className="grid grid-cols-2 gap-2.5">
-            {/* Bed capacity tile */}
-            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                <span className="flex items-center gap-1 font-medium">
-                  <Bed className="w-3.5 h-3.5 text-teal-400" /> Available Beds
+          {/* Real-time Capacity, ICU & Staff Quick Controls */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs text-slate-300 font-semibold px-0.5">
+              <span>Facility Capacity & Staff Deployment</span>
+              {metaSavedNotice && (
+                <span className="text-[11px] text-emerald-400 flex items-center gap-1 font-normal animate-pulse">
+                  <Check className="w-3 h-3" /> Updated on server
                 </span>
-                <span className="text-[10px] text-slate-500">
-                  Total: {facility.capacity.bedsTotal}
-                </span>
-              </div>
-              <div className="flex items-center justify-between mt-1">
-                <span className="text-xl font-bold text-slate-100">{bedsAvailable}</span>
-                {canEdit && (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => {
-                        setBedsAvailable((b) => Math.max(0, b - 1));
-                        handleSaveCapacity();
-                      }}
-                      className="p-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setBedsAvailable((b) => Math.min(facility.capacity.bedsTotal, b + 1));
-                        handleSaveCapacity();
-                      }}
-                      className="p-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
 
-            {/* Attendance tile (Zero PHI, Counts only) */}
-            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
-              <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                <span className="flex items-center gap-1 font-medium">
-                  <Users className="w-3.5 h-3.5 text-blue-400" /> Nurses on Duty
-                </span>
-                <span className="text-[10px] text-slate-500">
-                  Roster: {facility.attendance.rosterNurses}
-                </span>
-              </div>
-              <div className="flex items-center justify-between mt-1">
-                <span className="text-xl font-bold text-slate-100">{nursesPresent}</span>
-                {canEdit && (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => {
-                        setNursesPresent((n) => Math.max(0, n - 1));
-                        handleSaveAttendance();
-                      }}
-                      className="p-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setNursesPresent((n) => n + 1);
-                        handleSaveAttendance();
-                      }}
-                      className="p-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {/* General Beds tile */}
+              <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80 space-y-1.5">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="flex items-center gap-1 font-medium">
+                    <Bed className="w-3.5 h-3.5 text-sky-400" /> General Beds
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    Tot: {bedsTotal}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-lg font-bold text-slate-100 font-mono">{bedsAvailable}</span>
+                    <span className="text-[10px] text-slate-400 ml-1">avail</span>
                   </div>
-                )}
+                  {canEdit && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          const next = Math.max(0, bedsAvailable - 1);
+                          setBedsAvailable(next);
+                          handleSaveMeta({ bedsAvailable: next });
+                        }}
+                        className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300"
+                        title="Decrease available beds"
+                      >
+                        <Minus className="w-2.5 h-2.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          const next = Math.min(bedsTotal, bedsAvailable + 1);
+                          setBedsAvailable(next);
+                          handleSaveMeta({ bedsAvailable: next });
+                        }}
+                        className="w-5 h-5 rounded bg-sky-600 hover:bg-sky-500 flex items-center justify-center text-white"
+                        title="Increase available beds"
+                      >
+                        <Plus className="w-2.5 h-2.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          const nextTot = bedsTotal + 1;
+                          const nextAvail = bedsAvailable + 1;
+                          setBedsTotal(nextTot);
+                          setBedsAvailable(nextAvail);
+                          handleSaveMeta({ bedsTotal: nextTot, bedsAvailable: nextAvail });
+                        }}
+                        className="px-1 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] text-sky-300 font-bold"
+                        title="Add +1 Total Bed to Ward"
+                      >
+                        +Bed
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ICU Beds tile */}
+              <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80 space-y-1.5">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="flex items-center gap-1 font-medium">
+                    <HeartPulse className="w-3.5 h-3.5 text-rose-400" /> ICU Beds
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    Tot: {icuTotal}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-lg font-bold text-rose-300 font-mono">{icuAvailable}</span>
+                    <span className="text-[10px] text-slate-400 ml-1">avail</span>
+                  </div>
+                  {canEdit && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          const next = Math.max(0, icuAvailable - 1);
+                          setIcuAvailable(next);
+                          handleSaveMeta({ icuAvailable: next });
+                        }}
+                        className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300"
+                      >
+                        <Minus className="w-2.5 h-2.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          const next = Math.min(icuTotal, icuAvailable + 1);
+                          setIcuAvailable(next);
+                          handleSaveMeta({ icuAvailable: next });
+                        }}
+                        className="w-5 h-5 rounded bg-rose-600 hover:bg-rose-500 flex items-center justify-center text-white"
+                      >
+                        <Plus className="w-2.5 h-2.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          const nextTot = icuTotal + 1;
+                          const nextAvail = icuAvailable + 1;
+                          setIcuTotal(nextTot);
+                          setIcuAvailable(nextAvail);
+                          handleSaveMeta({ icuTotal: nextTot, icuAvailable: nextAvail });
+                        }}
+                        className="px-1 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] text-rose-300 font-bold"
+                        title="Add +1 ICU Bed"
+                      >
+                        +ICU
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Nurses on Duty */}
+              <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80 space-y-1.5">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="flex items-center gap-1 font-medium">
+                    <Users className="w-3.5 h-3.5 text-teal-400" /> Nurses on Duty
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-bold text-teal-300 font-mono">{nursesPresent} Staff</span>
+                  {canEdit && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          const next = Math.max(0, nursesPresent - 1);
+                          setNursesPresent(next);
+                          handleSaveMeta({ nursesPresent: next });
+                        }}
+                        className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300"
+                      >
+                        <Minus className="w-2.5 h-2.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          const next = nursesPresent + 1;
+                          setNursesPresent(next);
+                          handleSaveMeta({ nursesPresent: next });
+                        }}
+                        className="w-5 h-5 rounded bg-teal-600 hover:bg-teal-500 flex items-center justify-center text-white"
+                        title="Add Nurse on Duty"
+                      >
+                        <Plus className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Doctors & ANMs on Duty */}
+              <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80 space-y-1.5">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="flex items-center gap-1 font-medium">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Doctors on Duty
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-bold text-emerald-300 font-mono">{doctorsPresent} Docs</span>
+                  {canEdit && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          const next = Math.max(0, doctorsPresent - 1);
+                          setDoctorsPresent(next);
+                          handleSaveMeta({ doctorsPresent: next });
+                        }}
+                        className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300"
+                      >
+                        <Minus className="w-2.5 h-2.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          const next = doctorsPresent + 1;
+                          setDoctorsPresent(next);
+                          handleSaveMeta({ doctorsPresent: next });
+                        }}
+                        className="w-5 h-5 rounded bg-emerald-600 hover:bg-emerald-500 flex items-center justify-center text-white"
+                        title="Add Doctor on Duty"
+                      >
+                        <Plus className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -436,8 +665,147 @@ export const FacilityDrawer: React.FC<FacilityDrawerProps> = ({
               </div>
             </div>
           )}
+
+          {/* Decommission / Delete Facility button for Admins/District Officers */}
+          {canEdit && user?.role !== 'phc_nurse' && (
+            <div className="pt-2 border-t border-slate-800 flex justify-end">
+              <button
+                onClick={handleDeleteFacility}
+                disabled={isDeleting}
+                className="px-3 py-1.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:bg-rose-500/25 text-xs font-semibold flex items-center gap-1.5 transition"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isDeleting ? 'Decommissioning...' : 'Decommission Facility'}</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Edit Facility Profile Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-teal-400" />
+                Edit Facility Profile in Database
+              </h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-300 font-medium mb-1">Facility Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white outline-none focus:border-teal-500 text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Code</label>
+                  <input
+                    type="text"
+                    required
+                    value={editCode}
+                    onChange={(e) => setEditCode(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-xs outline-none focus:border-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Level</label>
+                  <select
+                    value={editLevel}
+                    onChange={(e) => setEditLevel(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:border-teal-500"
+                  >
+                    <option value="PHC">PHC (Primary)</option>
+                    <option value="CHC">CHC (Community)</option>
+                    <option value="DH">DH (District Hospital)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-medium mb-1">District / Jurisdiction</label>
+                <input
+                  type="text"
+                  required
+                  value={editDistrict}
+                  onChange={(e) => setEditDistrict(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Latitude</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    required
+                    value={editLat}
+                    onChange={(e) => setEditLat(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-xs outline-none focus:border-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Longitude</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    required
+                    value={editLng}
+                    onChange={(e) => setEditLng(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-xs outline-none focus:border-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="editColdChain"
+                  checked={editColdChain}
+                  onChange={(e) => setEditColdChain(e.target.checked)}
+                  className="rounded border-slate-700 bg-slate-800 text-teal-500 focus:ring-0"
+                />
+                <label htmlFor="editColdChain" className="text-slate-300 text-xs cursor-pointer">
+                  Cold-Chain Certified (Solar / ILR Refrigerator)
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingProfile}
+                  className="px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-teal-500/20"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{isSavingProfile ? 'Saving to Database...' : 'Save Profile'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

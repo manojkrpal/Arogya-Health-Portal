@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { FacilitySnapshot } from '../types/client.js';
+import { useAuth } from '../context/AuthContext.js';
 import {
   Layers,
   Bed,
@@ -12,6 +13,11 @@ import {
   RefreshCw,
   Search,
   Filter,
+  Plus,
+  Building2,
+  X,
+  Save,
+  Check,
 } from 'lucide-react';
 
 interface MapViewProps {
@@ -103,9 +109,75 @@ export const MapView: React.FC<MapViewProps> = ({
   onRefresh,
   isLoading,
 }) => {
+  const { user, token } = useAuth();
   const [useSchematicView, setUseSchematicView] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'critical' | 'warning' | 'healthy'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Add facility state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newCode, setNewCode] = useState('');
+  const [newLevel, setNewLevel] = useState<'PHC' | 'CHC' | 'DH'>('PHC');
+  const [newDistrict, setNewDistrict] = useState('Pune Rural');
+  const [newLat, setNewLat] = useState<number>(18.65);
+  const [newLng, setNewLng] = useState<number>(74.15);
+  const [newBedsTotal, setNewBedsTotal] = useState<number>(12);
+  const [newBedsAvailable, setNewBedsAvailable] = useState<number>(8);
+  const [newIcuTotal, setNewIcuTotal] = useState<number>(2);
+  const [newIcuAvailable, setNewIcuAvailable] = useState<number>(1);
+  const [newOxygenCylinders, setNewOxygenCylinders] = useState<number>(5);
+  const [newNursesPresent, setNewNursesPresent] = useState<number>(2);
+  const [newDoctorsPresent, setNewDoctorsPresent] = useState<number>(1);
+  const [newColdChain, setNewColdChain] = useState<boolean>(true);
+  const [isSubmittingNew, setIsSubmittingNew] = useState(false);
+
+  const canRegisterFacility =
+    user?.role === 'district_officer' ||
+    user?.role === 'national_war_room' ||
+    user?.role === 'state_admin';
+
+  const handleCreateFacility = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setIsSubmittingNew(true);
+    try {
+      const res = await fetch('/v1/facilities', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: newName,
+          code: newCode || undefined,
+          level: newLevel,
+          district: newDistrict,
+          lat: newLat,
+          lng: newLng,
+          coldChainCapable: newColdChain,
+          bedsTotal: newBedsTotal,
+          bedsAvailable: newBedsAvailable,
+          icuTotal: newIcuTotal,
+          icuAvailable: newIcuAvailable,
+          oxygenCylinders: newOxygenCylinders,
+          nursesPresent: newNursesPresent,
+          doctorsPresent: newDoctorsPresent,
+        }),
+      });
+
+      if (res.ok) {
+        setShowAddModal(false);
+        setNewName('');
+        setNewCode('');
+        onRefresh();
+      }
+    } catch (err) {
+      console.error('Failed to create facility:', err);
+    } finally {
+      setIsSubmittingNew(false);
+    }
+  };
 
   const filteredFacilities = facilities.filter((f) => {
     if (filterStatus !== 'all' && f.status !== filterStatus) return false;
@@ -153,6 +225,16 @@ export const MapView: React.FC<MapViewProps> = ({
             >
               Alerts ({facilities.filter((f) => f.status === 'critical').length})
             </button>
+            {canRegisterFacility && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="px-2 py-1 rounded-md bg-teal-600 hover:bg-teal-500 text-white border border-teal-500 flex items-center gap-1 font-bold shadow shadow-teal-500/20"
+                title="Register a new Health Facility in database"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Facility</span>
+              </button>
+            )}
             <button
               onClick={() => setUseSchematicView(!useSchematicView)}
               className={`p-1.5 rounded-md border transition ${
@@ -318,6 +400,206 @@ export const MapView: React.FC<MapViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Register Health Facility Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-teal-400" />
+                  Register Health Facility (Database Direct)
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Creates facility record in PostgreSQL and synchronizes with Firestore.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateFacility} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-300 font-medium mb-1">Facility Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Alandi Rural PHC"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white outline-none focus:border-teal-500 text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Facility Code (Auto if empty)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. PHC-ALANDI-01"
+                    value={newCode}
+                    onChange={(e) => setNewCode(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-xs outline-none focus:border-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Tier / Level</label>
+                  <select
+                    value={newLevel}
+                    onChange={(e) => setNewLevel(e.target.value as any)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:border-teal-500"
+                  >
+                    <option value="PHC">PHC (Primary Health Centre)</option>
+                    <option value="CHC">CHC (Community Health Centre)</option>
+                    <option value="DH">DH (District Hospital)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-medium mb-1">District / Jurisdiction</label>
+                <input
+                  type="text"
+                  required
+                  value={newDistrict}
+                  onChange={(e) => setNewDistrict(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:border-teal-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Latitude</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    required
+                    value={newLat}
+                    onChange={(e) => setNewLat(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-xs outline-none focus:border-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-medium mb-1">Longitude</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    required
+                    value={newLng}
+                    onChange={(e) => setNewLng(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono text-xs outline-none focus:border-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 space-y-2">
+                <span className="font-bold text-slate-300 block text-xs">Initial Beds & Capacity</span>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-slate-400 text-[11px] mb-0.5">Total Beds</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={newBedsTotal}
+                      onChange={(e) => setNewBedsTotal(parseInt(e.target.value) || 1)}
+                      className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-white text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 text-[11px] mb-0.5">Available Beds</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={newBedsAvailable}
+                      onChange={(e) => setNewBedsAvailable(parseInt(e.target.value) || 0)}
+                      className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-white text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 text-[11px] mb-0.5">ICU Beds</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={newIcuTotal}
+                      onChange={(e) => setNewIcuTotal(parseInt(e.target.value) || 0)}
+                      className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-white text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <div>
+                    <label className="block text-slate-400 text-[11px] mb-0.5">O2 Cylinders</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={newOxygenCylinders}
+                      onChange={(e) => setNewOxygenCylinders(parseInt(e.target.value) || 0)}
+                      className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-white text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 text-[11px] mb-0.5">Nurses Active</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={newNursesPresent}
+                      onChange={(e) => setNewNursesPresent(parseInt(e.target.value) || 0)}
+                      className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-white text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 text-[11px] mb-0.5">Doctors Active</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={newDoctorsPresent}
+                      onChange={(e) => setNewDoctorsPresent(parseInt(e.target.value) || 0)}
+                      className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-white text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="newColdChain"
+                  checked={newColdChain}
+                  onChange={(e) => setNewColdChain(e.target.checked)}
+                  className="rounded border-slate-700 bg-slate-800 text-teal-500 focus:ring-0"
+                />
+                <label htmlFor="newColdChain" className="text-slate-300 text-xs cursor-pointer">
+                  Cold-Chain Certified (Ice-Lined Refrigerator Installed)
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingNew}
+                  className="px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-teal-500/20"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{isSubmittingNew ? 'Saving to Database...' : 'Register Facility'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

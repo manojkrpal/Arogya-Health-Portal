@@ -123,6 +123,8 @@ export const capacity = pgTable('capacity', {
     .references(() => facilities.id, { onDelete: 'cascade' }),
   bedsTotal: integer('beds_total').notNull(),
   bedsAvailable: integer('beds_available').notNull(),
+  icuTotal: integer('icu_total').notNull().default(2),
+  icuAvailable: integer('icu_available').notNull().default(1),
   oxygenCylinders: integer('oxygen_cylinders').notNull().default(0),
 });
 

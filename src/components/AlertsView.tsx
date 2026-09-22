@@ -178,7 +178,7 @@ export const AlertsView: React.FC<AlertsViewProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-3 sm:p-4 space-y-4 pb-24 text-slate-100">
+    <div className="max-w-4xl mx-auto p-3 sm:p-4 space-y-4 text-slate-100">
       {/* Top Header Card with Sub-tabs */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

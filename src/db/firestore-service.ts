@@ -347,6 +347,79 @@ export async function updateFirestoreEmergency(
   });
 }
 
+export async function upsertFirestoreFacility(
+  facility: {
+    id: string;
+    code: string;
+    name: string;
+    level: string;
+    district: string;
+    lat: number;
+    lng: number;
+    cold_chain_capable: boolean;
+    tenant_id?: string;
+  },
+  actor?: { userId: string; email: string; role: string }
+): Promise<void> {
+  const targetTenantId = facility.tenant_id || TENANT_ID;
+  const facDocRef = doc(db, 'tenants', targetTenantId, 'facilities', facility.id);
+  await setDoc(
+    facDocRef,
+    sanitizeForFirestore({
+      id: facility.id,
+      code: facility.code,
+      name: facility.name,
+      level: facility.level,
+      district: facility.district,
+      lat: facility.lat,
+      lng: facility.lng,
+      cold_chain_capable: facility.cold_chain_capable,
+      tenant_id: targetTenantId,
+      updated_at: new Date().toISOString(),
+    }),
+    { merge: true }
+  );
+
+  if (actor) {
+    await logAuditEvent({
+      actor,
+      action: 'FACILITY_UPSERTED',
+      entityType: 'FACILITY',
+      entityId: facility.id,
+      after: sanitizeForFirestore(facility),
+    });
+  }
+}
+
+/**
+ * Delete facility from Firestore
+ */
+export async function deleteFirestoreFacility(
+  facilityId: string,
+  tenantId?: string,
+  actor?: { userId: string; email: string; role: string }
+): Promise<void> {
+  const targetTenantId = tenantId || TENANT_ID;
+  const facDocRef = doc(db, 'tenants', targetTenantId, 'facilities', facilityId);
+  await setDoc(
+    facDocRef,
+    sanitizeForFirestore({
+      decommissioned: true,
+      decommissioned_at: new Date().toISOString(),
+    }),
+    { merge: true }
+  );
+
+  if (actor) {
+    await logAuditEvent({
+      actor,
+      action: 'FACILITY_DECOMMISSIONED',
+      entityType: 'FACILITY',
+      entityId: facilityId,
+    });
+  }
+}
+
 /**
  * Sync alert to Firestore collection /tenants/{tenantId}/alerts/{alertId}
  */

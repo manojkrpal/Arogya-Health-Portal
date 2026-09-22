@@ -82,11 +82,19 @@ export async function initDb(): Promise<void> {
   }
 
   if (!pgPool) {
-    console.log('[DB] Initializing embedded PostgreSQL (PGlite v16 WASM engine) for zero-config live preview...');
-    pgliteInstance = new PGlite();
+    const dataDir = path.join(process.cwd(), '.pglite_db');
+    if (!fs.existsSync(dataDir)) {
+      try {
+        fs.mkdirSync(dataDir, { recursive: true });
+      } catch (err) {
+        // directory creation fallback
+      }
+    }
+    console.log(`[DB] Initializing embedded PostgreSQL (PGlite v16 WASM engine at ${dataDir})...`);
+    pgliteInstance = new PGlite(dataDir);
     await pgliteInstance.waitReady;
     usingEngine = 'embedded_postgres';
-    console.log('[DB] Embedded PostgreSQL ready.');
+    console.log('[DB] Embedded PostgreSQL ready and persisted to disk.');
   }
 
   // Run schema and seed for local embedded engine or custom external DB
@@ -110,12 +118,14 @@ export async function initDb(): Promise<void> {
             recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
           );
           CREATE INDEX IF NOT EXISTS idx_telemetry_facility_time ON cold_chain_telemetry(facility_id, recorded_at DESC);
+          ALTER TABLE capacity ADD COLUMN IF NOT EXISTS icu_total INT NOT NULL DEFAULT 2;
+          ALTER TABLE capacity ADD COLUMN IF NOT EXISTS icu_available INT NOT NULL DEFAULT 1;
         `);
       } finally {
         client.release();
       }
     } catch (e: any) {
-      console.warn('[DB] Non-blocking cold_chain_telemetry check:', e.message);
+      console.warn('[DB] Non-blocking schema check:', e.message);
     }
   }
   isInitialized = true;

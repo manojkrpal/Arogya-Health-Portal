@@ -25,6 +25,12 @@ export const FederationView: React.FC<FederationViewProps> = ({ initialSubTab = 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeSubTab, setActiveSubTab] = useState<'indices' | 'model-card' | 'audit'>(initialSubTab);
 
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
+
   const canViewAudit = ['compliance_auditor', 'national_war_room', 'state_admin', 'district_officer', 'brics_analyst'].includes(user?.role || '');
 
   useEffect(() => {
@@ -55,7 +61,7 @@ export const FederationView: React.FC<FederationViewProps> = ({ initialSubTab = 
   }, [token]);
 
   return (
-    <div className="p-3 sm:p-5 max-w-4xl mx-auto space-y-4 pb-24">
+    <div className="p-3 sm:p-5 max-w-4xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

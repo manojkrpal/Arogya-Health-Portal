@@ -23,9 +23,19 @@ import {
 
 type SubTab = 'grid' | 'orders';
 
-export const NationalSupplyView: React.FC = () => {
+interface NationalSupplyViewProps {
+  initialSubTab?: SubTab;
+}
+
+export const NationalSupplyView: React.FC<NationalSupplyViewProps> = ({ initialSubTab = 'grid' }) => {
   const { user, token } = useAuth();
-  const [subTab, setSubTab] = useState<SubTab>('grid');
+  const [subTab, setSubTab] = useState<SubTab>(initialSubTab);
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
   const [purchaseOrders, setPurchaseOrders] = useState<ProcurementPO[]>([]);
   const [nationalStates, setNationalStates] = useState<NationalGridState[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -182,7 +192,7 @@ export const NationalSupplyView: React.FC = () => {
   }, [nationalStates, searchTerm, statusFilter]);
 
   return (
-    <div className="p-3 sm:p-5 max-w-6xl mx-auto space-y-4 pb-24 text-slate-100">
+    <div className="p-3 sm:p-5 max-w-6xl mx-auto space-y-4 text-slate-100">
       {/* Top Banner & Hub Controls */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

@@ -91,8 +91,9 @@ CREATE TABLE IF NOT EXISTS capacity (
   facility_id UUID PRIMARY KEY REFERENCES facilities(id) ON DELETE CASCADE,
   beds_total INT NOT NULL CHECK (beds_total >= 0),
   beds_available INT NOT NULL CHECK (beds_available >= 0),
-  oxygen_cylinders INT NOT NULL DEFAULT 0,
-  CHECK (beds_available <= beds_total)
+  icu_total INT NOT NULL DEFAULT 2 CHECK (icu_total >= 0),
+  icu_available INT NOT NULL DEFAULT 1 CHECK (icu_available >= 0),
+  oxygen_cylinders INT NOT NULL DEFAULT 0
 );
 
 -- 8. Daily Attendance (Counts only - NO names, NO PHI)

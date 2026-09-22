@@ -201,7 +201,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
   };
 
   return (
-    <div className="p-3 sm:p-5 max-w-4xl mx-auto space-y-4 pb-24">
+    <div className="p-3 sm:p-5 max-w-4xl mx-auto space-y-4">
       {/* Header & Sub-tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

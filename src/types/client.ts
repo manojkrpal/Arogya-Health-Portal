@@ -21,6 +21,10 @@ export interface CurrentUser {
 export interface FacilityCapacity {
   bedsTotal: number;
   bedsAvailable: number;
+  bedsOccupied?: number;
+  icuTotal?: number;
+  icuAvailable?: number;
+  icuOccupied?: number;
   oxygenCylinders: number;
 }
 
@@ -79,6 +83,14 @@ export interface StockItem {
   modelVersion: string;
   modelLabel: string;
   updatedAt: string;
+  // Aliases and calculated helpers for nurse and inventory consoles
+  quantity?: number;
+  skuName?: string;
+  skuCode?: string;
+  safetyStockThreshold?: number;
+  dailyBurnRate?: number;
+  daysOfSupplyRemaining?: number;
+  isCriticalStockout?: boolean;
 }
 
 export interface StockLot {
