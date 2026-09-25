@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.js';
 import { FacilitySnapshot, StockItem, StockLot } from '../types/client.js';
 import { VoiceNurseAssistantModal } from './VoiceNurseAssistantModal.js';
 import { MultimodalTriageModal } from './MultimodalTriageModal.js';
+import { UserManualModal } from './UserManualModal.js';
 import {
   Building2,
   Bed,
@@ -24,6 +25,7 @@ import {
   HeartPulse,
   Send,
   X,
+  BookOpen,
 } from 'lucide-react';
 
 interface NurseFacilityViewProps {
@@ -62,6 +64,7 @@ export const NurseFacilityView: React.FC<NurseFacilityViewProps> = ({
   const [isUpdatingMeta, setIsUpdatingMeta] = useState<boolean>(false);
   const [metaSaved, setMetaSaved] = useState<boolean>(false);
   const [showAddResourceModal, setShowAddResourceModal] = useState<boolean>(false);
+  const [showManualModal, setShowManualModal] = useState<boolean>(false);
 
   // Active facility resolution state
   const [activeFacilityId, setActiveFacilityId] = useState<string>(
@@ -404,6 +407,16 @@ export const NurseFacilityView: React.FC<NurseFacilityViewProps> = ({
               title="Camera Scan: Batch Inspection"
             >
               <Camera className="w-4 h-4 text-teal-400" />
+            </button>
+
+            {/* Field User Manual */}
+            <button
+              onClick={() => setShowManualModal(true)}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 font-semibold text-xs flex items-center gap-1.5 transition border border-sky-500/30 cursor-pointer"
+              title="Open ArogyaNet Official User Manual, Step-by-Step Field Guides & PDF"
+            >
+              <BookOpen className="w-4 h-4 text-sky-400" />
+              <span className="hidden md:inline">Field Manual</span>
             </button>
 
             {/* Refresh */}
@@ -1190,6 +1203,12 @@ export const NurseFacilityView: React.FC<NurseFacilityViewProps> = ({
           }}
         />
       )}
+
+      {/* Field User Manual Modal */}
+      <UserManualModal
+        isOpen={showManualModal}
+        onClose={() => setShowManualModal(false)}
+      />
     </div>
   );
 };

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth, DEMO_USERS } from '../context/AuthContext.js';
 import { LANGUAGE_OPTIONS, Language } from '../lib/i18n.js';
 import { VoiceNurseAssistantModal } from './VoiceNurseAssistantModal.js';
+import { UserManualModal } from './UserManualModal.js';
 import {
   ShieldAlert,
   Activity,
@@ -11,6 +12,8 @@ import {
   WifiOff,
   ChevronDown,
   Mic,
+  FileText,
+  BookOpen,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -30,6 +33,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
+  const [showManualModal, setShowManualModal] = useState(false);
 
   const currentLang = LANGUAGE_OPTIONS.find((l) => l.code === lang) || LANGUAGE_OPTIONS[0];
 
@@ -85,6 +89,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Mic className="w-3.5 h-3.5 text-teal-400 shrink-0" />
               <span className="hidden sm:inline">Voice Assistant</span>
+            </button>
+
+            {/* User Manual Button (Interactive Guide & PDF Reader) */}
+            <button
+              id="user-manual-btn"
+              type="button"
+              onClick={() => setShowManualModal(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 hover:text-sky-200 text-xs font-semibold border border-sky-500/30 transition shadow-sm cursor-pointer"
+              title="Open ArogyaNet User Manual, Interactive Field Guide & PDF"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+              <span className="hidden sm:inline">User Manual</span>
             </button>
 
             {/* Online/Offline status */}
@@ -236,6 +252,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           }}
         />
       )}
+
+      {/* Official Field User Manual Modal (Interactive Guide, Embedded PDF & Download) */}
+      <UserManualModal
+        isOpen={showManualModal}
+        onClose={() => setShowManualModal(false)}
+      />
     </>
   );
 };

@@ -25,7 +25,24 @@ async function startServer() {
     });
   });
 
-  // Mount API routers FIRST before Vite middleware
+  // User Manual PDF route (supports inline viewing in iframes/objects, direct download, and CORS)
+  app.get(['/ArogyaNet_User_Manual.pdf', '/api/manual/pdf', '/api/manual/download', '/api/manual/view'], (req, res) => {
+    const pdfPath = path.resolve(process.cwd(), 'public', 'ArogyaNet_User_Manual.pdf');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    
+    // Set attachment if explicitly requested, otherwise inline so browser/iframes can open and render directly
+    if (req.query.download === 'true' || req.path.includes('download')) {
+      res.setHeader('Content-Disposition', 'attachment; filename="ArogyaNet_User_Manual.pdf"');
+    } else {
+      res.setHeader('Content-Disposition', 'inline; filename="ArogyaNet_User_Manual.pdf"');
+    }
+    res.sendFile(pdfPath);
+  });
+
+  // Mount API routers
   app.use('/v1', apiRouter);
   app.use('/api/v1', apiRouter);
   app.use('/api', apiRouter);
