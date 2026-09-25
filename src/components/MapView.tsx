@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import {
+  APIProvider,
+  Map,
+  AdvancedMarker,
+  InfoWindow,
+  useMap,
+} from '@vis.gl/react-google-maps';
 import { FacilitySnapshot } from '../types/client.js';
 import { useAuth } from '../context/AuthContext.js';
 import {
@@ -8,16 +13,12 @@ import {
   Bed,
   Users,
   AlertTriangle,
-  CheckCircle2,
-  Snowflake,
-  RefreshCw,
   Search,
-  Filter,
   Plus,
   Building2,
   X,
   Save,
-  Check,
+  RefreshCw,
 } from 'lucide-react';
 
 interface MapViewProps {
@@ -29,75 +30,19 @@ interface MapViewProps {
 }
 
 // Center of Pune rural PHC cluster (Shirur, Talegaon, Manchar, Baramati)
-const PUNE_CENTER: [number, number] = [18.65, 74.15];
+const PUNE_CENTER: { lat: number; lng: number } = { lat: 18.65, lng: 74.15 };
 
-// Custom HTML pin markers with status color, beds, and attendance indicators
-function createPinIcon(facility: FacilitySnapshot, isSelected: boolean) {
-  const isCritical = facility.status === 'critical';
-  const isWarning = facility.status === 'warning';
-
-  const bgColor = isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#10b981';
-  const ringColor = isCritical ? 'rgba(239, 68, 68, 0.4)' : isWarning ? 'rgba(245, 158, 11, 0.4)' : 'rgba(16, 185, 129, 0.3)';
-
-  const html = `
-    <div style="position: relative; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); cursor: pointer;">
-      <!-- Pulsing alert ring for critical or warning -->
-      ${
-        isCritical || isWarning
-          ? `<div style="position: absolute; width: 44px; height: 44px; border-radius: 50%; background: ${ringColor}; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite; top: -4px;"></div>`
-          : ''
-      }
-      <!-- Main marker pin -->
-      <div style="
-        position: relative;
-        background: ${bgColor};
-        color: white;
-        border: 2px solid ${isSelected ? '#ffffff' : '#0f172a'};
-        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        border-radius: 12px;
-        padding: 4px 8px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        font-family: system-ui, -apple-system, sans-serif;
-        font-weight: 700;
-        font-size: 11px;
-        white-space: nowrap;
-        z-index: 10;
-        transition: transform 0.2s;
-        ${isSelected ? 'transform: scale(1.15);' : ''}
-      ">
-        <span>${facility.level}</span>
-        <span style="background: rgba(0,0,0,0.25); border-radius: 6px; padding: 1px 4px; font-size: 10px;">
-          🛏️ ${facility.capacity.bedsAvailable}
-        </span>
-        ${facility.coldChainCapable ? '<span title="Cold-chain certified">❄️</span>' : ''}
-      </div>
-      <!-- Pin point arrow -->
-      <div style="
-        width: 0;
-        height: 0;
-        border-left: 6px solid transparent;
-        border-right: 6px solid transparent;
-        border-top: 7px solid ${bgColor};
-        margin-top: -1px;
-      "></div>
-    </div>
-  `;
-
-  return L.divIcon({
-    html,
-    className: 'custom-pin-marker',
-    iconSize: [0, 0],
-    iconAnchor: [0, 0],
-  });
-}
+const GOOGLE_MAPS_API_KEY =
+  (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY ||
+  'AIzaSyAqeH171dGkm5NFOeXD_ZwlVV778WKUnIA';
 
 // Helper to pan map when facility selected
-function MapRecenter({ center }: { center: [number, number] }) {
+function MapRecenter({ center }: { center: { lat: number; lng: number } }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, map.getZoom());
+    if (map) {
+      map.panTo(center);
+    }
   }, [center, map]);
   return null;
 }
@@ -113,6 +58,7 @@ export const MapView: React.FC<MapViewProps> = ({
   const [useSchematicView, setUseSchematicView] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'critical' | 'warning' | 'healthy'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [infoWindowFacility, setInfoWindowFacility] = useState<FacilitySnapshot | null>(null);
 
   // Add facility state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -135,6 +81,14 @@ export const MapView: React.FC<MapViewProps> = ({
   const canRegisterFacility =
     user?.role === 'district_officer' ||
     user?.role === 'national_war_room';
+
+  // Synchronize info window with external facility selection
+  useEffect(() => {
+    if (selectedFacilityId) {
+      const fac = facilities.find((f) => f.id === selectedFacilityId);
+      if (fac) setInfoWindowFacility(fac);
+    }
+  }, [selectedFacilityId, facilities]);
 
   const handleCreateFacility = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,9 +146,14 @@ export const MapView: React.FC<MapViewProps> = ({
   });
 
   const selectedFacility = facilities.find((f) => f.id === selectedFacilityId);
-  const activeCenter: [number, number] = selectedFacility
-    ? [selectedFacility.lat, selectedFacility.lng]
+  const activeCenter: { lat: number; lng: number } = selectedFacility
+    ? { lat: selectedFacility.lat, lng: selectedFacility.lng }
     : PUNE_CENTER;
+
+  const handleMarkerClick = (fac: FacilitySnapshot) => {
+    setInfoWindowFacility(fac);
+    onSelectFacility(fac);
+  };
 
   return (
     <div className="relative w-full h-[calc(100vh-115px)] flex flex-col bg-slate-950 overflow-hidden">
@@ -241,7 +200,7 @@ export const MapView: React.FC<MapViewProps> = ({
                   ? 'bg-teal-500 text-slate-950 border-teal-400'
                   : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
               }`}
-              title="Toggle between Leaflet tiles and Schematic Grid"
+              title="Toggle between Google Map and Schematic Grid"
             >
               <Layers className="w-3.5 h-3.5" />
             </button>
@@ -272,55 +231,128 @@ export const MapView: React.FC<MapViewProps> = ({
         </div>
       </div>
 
-      {/* Main Map: Interactive Leaflet Map OR Fallback Schematic Grid Map */}
+      {/* Main Map: Interactive Google Map OR Fallback Schematic Grid Map */}
       <div className="flex-1 w-full h-full relative z-0">
         {!useSchematicView ? (
-          <MapContainer
-            center={activeCenter}
-            zoom={10}
-            scrollWheelZoom={true}
-            className="w-full h-full"
-            attributionControl={true}
-          >
-            {/* Standard OpenStreetMap raster tile layer with required attribution */}
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maxZoom={18}
-            />
+          <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+            <Map
+              style={{ width: '100%', height: '100%' }}
+              defaultCenter={activeCenter}
+              defaultZoom={10}
+              mapId="DEMO_MAP_ID"
+              gestureHandling="greedy"
+              disableDefaultUI={false}
+              internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
+            >
+              <MapRecenter center={activeCenter} />
 
-            <MapRecenter center={activeCenter} />
+              {filteredFacilities.map((fac) => {
+                const isCritical = fac.status === 'critical';
+                const isWarning = fac.status === 'warning';
+                const isSelected = fac.id === selectedFacilityId;
+                const bgColor = isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#10b981';
+                const ringColor = isCritical
+                  ? 'rgba(239, 68, 68, 0.4)'
+                  : isWarning
+                  ? 'rgba(245, 158, 11, 0.4)'
+                  : 'rgba(16, 185, 129, 0.3)';
 
-            {filteredFacilities.map((fac) => (
-              <Marker
-                key={fac.id}
-                position={[fac.lat, fac.lng]}
-                icon={createPinIcon(fac, fac.id === selectedFacilityId)}
-                eventHandlers={{
-                  click: () => onSelectFacility(fac),
-                }}
-              >
-                <Popup className="custom-leaflet-popup">
-                  <div className="p-1 text-slate-900">
-                    <div className="font-bold text-xs">{fac.name}</div>
+                return (
+                  <AdvancedMarker
+                    key={fac.id}
+                    position={{ lat: fac.lat, lng: fac.lng }}
+                    onClick={() => handleMarkerClick(fac)}
+                    title={fac.name}
+                  >
+                    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}>
+                      {/* Pulsing alert ring for critical or warning */}
+                      {(isCritical || isWarning) && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '50%',
+                            background: ringColor,
+                            animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite',
+                            top: '-4px',
+                          }}
+                        />
+                      )}
+                      {/* Main marker pin */}
+                      <div
+                        style={{
+                          position: 'relative',
+                          background: bgColor,
+                          color: 'white',
+                          border: `2px solid ${isSelected ? '#ffffff' : '#0f172a'}`,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                          borderRadius: '12px',
+                          padding: '4px 8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          fontFamily: 'system-ui, -apple-system, sans-serif',
+                          fontWeight: 700,
+                          fontSize: '11px',
+                          whiteSpace: 'nowrap',
+                          zIndex: 10,
+                          transform: isSelected ? 'scale(1.15)' : 'none',
+                          transition: 'transform 0.2s',
+                        }}
+                      >
+                        <span>{fac.level}</span>
+                        <span style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '6px', padding: '1px 4px', fontSize: '10px' }}>
+                          🛏️ {fac.capacity.bedsAvailable}
+                        </span>
+                        {fac.coldChainCapable && <span title="Cold-chain certified">❄️</span>}
+                      </div>
+                      {/* Pin point arrow */}
+                      <div
+                        style={{
+                          width: 0,
+                          height: 0,
+                          borderLeft: '6px solid transparent',
+                          borderRight: '6px solid transparent',
+                          borderTop: `7px solid ${bgColor}`,
+                          marginTop: '-1px',
+                        }}
+                      />
+                    </div>
+                  </AdvancedMarker>
+                );
+              })}
+
+              {infoWindowFacility && (
+                <InfoWindow
+                  position={{ lat: infoWindowFacility.lat, lng: infoWindowFacility.lng }}
+                  onCloseClick={() => setInfoWindowFacility(null)}
+                  pixelOffset={[0, -36]}
+                >
+                  <div className="p-1 text-slate-900 min-w-[190px]">
+                    <div className="font-bold text-xs">{infoWindowFacility.name}</div>
                     <div className="text-[11px] text-slate-600">
-                      {fac.level} &bull; {fac.district}
+                      {infoWindowFacility.level} &bull; {infoWindowFacility.district}
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-[10px]">
-                      <span>Beds: {fac.capacity.bedsAvailable}/{fac.capacity.bedsTotal}</span>
-                      <span>Staff: {fac.attendance.nursesPresent}N/{fac.attendance.doctorsPresent}D</span>
+                      <span>
+                        Beds: {infoWindowFacility.capacity.bedsAvailable}/{infoWindowFacility.capacity.bedsTotal}
+                      </span>
+                      <span>
+                        Staff: {infoWindowFacility.attendance.nursesPresent}N/{infoWindowFacility.attendance.doctorsPresent}D
+                      </span>
                     </div>
                     <button
-                      onClick={() => onSelectFacility(fac)}
-                      className="mt-2 w-full py-1 text-center bg-teal-600 text-white rounded text-[11px] font-semibold"
+                      onClick={() => onSelectFacility(infoWindowFacility)}
+                      className="mt-2 w-full py-1 text-center bg-teal-600 hover:bg-teal-700 text-white rounded text-[11px] font-semibold transition"
                     >
                       View Facility Details
                     </button>
                   </div>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
+                </InfoWindow>
+              )}
+            </Map>
+          </APIProvider>
         ) : (
           /* Schematic High-Contrast Fallback Grid Map */
           <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-slate-950 text-slate-200">
@@ -388,7 +420,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
                     {fac.risk.criticalCount > 0 && (
                       <div className="mt-2 text-[10px] text-rose-300 font-medium flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3 text-rose-400" />
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
                         Critical stockout: {fac.risk.highestRiskSku || 'Essential SKU'}
                       </div>
                     )}

@@ -169,6 +169,13 @@ export async function query<T = any>(
   }
 
   if (pgPool) {
+    if (sessionUser?.role === 'brics_analyst') {
+      const restricted = ['stock_on_hand', 'stock_lots', 'attendance_daily', 'transfer_orders', 'cold_chain_telemetry'];
+      const matchesRestricted = restricted.some((t) => sqlText.toLowerCase().includes(t));
+      if (matchesRestricted) {
+        return { rows: [] as T[], rowCount: 0 };
+      }
+    }
     const client = await pgPool.connect();
     try {
       if (sessionUser?.role) {

@@ -73,18 +73,18 @@ export const UserManualModal: React.FC<UserManualModalProps> = ({ isOpen, onClos
   const manualSections = [
     {
       id: 'gis-map',
-      title: '1. GIS Geographic Map & Facility Status',
+      title: '1. GIS Google Map & Facility Status',
       category: 'officer',
       icon: MapPin,
-      purpose: 'Provide live situational awareness of all Primary Health Centres (PHCs), Community Health Centres (CHCs), and Sub-District Hospitals across the district.',
+      purpose: 'Provide live situational awareness of all Primary Health Centres (PHCs), Community Health Centres (CHCs), and Sub-District Hospitals across the district via Google Maps.',
       howToUse: [
         'Open the "District Map" tab from the bottom navigation or logo.',
-        'View color-coded facility pins: Green (Adequate Stock >14 days), Yellow (Low Stock 7-14 days), Red (Critical Stockout Risk <7 days).',
-        'Click on any facility pin to open the Slide-over Facility Drawer.',
+        'View Google Maps color-coded facility pins: Green (Adequate Stock >14 days), Yellow (Low Stock 7-14 days), Red (Critical Stockout Risk <7 days).',
+        'Click on any facility pin to open the InfoWindow and Slide-over Facility Drawer.',
         'Inspect bed occupancy (General, ICU, Oxygen beds), on-duty staff telemetry, and low-stock SKU count in real-time.',
       ],
       example: 'District Health Officer sees an orange beacon at "Kadegaon PHC". Clicking it reveals Paracetamol is down to 2 days of supply. The officer immediately clicks "Propose Transfer" to solve the shortage.',
-      tips: 'Use the facility search bar to quickly jump to any PHC by name or block.',
+      tips: 'Use the facility search bar to quickly jump to any PHC by name or block, or toggle between Google Map and Schematic Grid.',
     },
     {
       id: 'nurse-console',

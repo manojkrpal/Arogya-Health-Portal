@@ -6,3 +6,9 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# PGlite database
+pglite_db/
+pglite_db/base/*
+.pglite_db/
+.pglite_db/base/*

@@ -85,7 +85,7 @@ doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text('TABLE OF CONTENTS'
 
 const tocItems = [
   '1. User Roles & Login Access (Persona Switching)',
-  '2. Interactive GIS Map View & Facility Pins',
+  '2. Interactive Google Maps GIS View & Facility Pins',
   '3. Facility Live Detail Drawer & Bed Metrics',
   '4. PHC Nurse Rapid Facility Management (Touch Steppers)',
   '5. Real-Time Cold-Chain IoT Telemetry (2°C - 8°C Alerts)',
@@ -184,8 +184,8 @@ function renderFeatureSection(title, purpose, howToUse, example) {
 }
 
 renderFeatureSection(
-  '2. INTERACTIVE GIS MAP VIEW & FACILITY PINS',
-  'Provides real-time spatial awareness of all clinics in the district or state, displaying live operational status, active stockout risks, and cold-chain health at a glance.',
+  '2. INTERACTIVE GOOGLE MAPS GIS VIEW & FACILITY PINS',
+  'Provides real-time spatial awareness powered by Google Maps across all clinics in the district or state, displaying live operational status, active stockout risks, and cold-chain health at a glance.',
   [
     'Navigate to the "Map" tab from the bottom or top navigation bar.',
     'Observe the color-coded pins: Green (Normal), Amber (Cover < 7 Days), Red (Critical Stockout Risk / Temperature Breach).',
