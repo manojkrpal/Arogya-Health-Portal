@@ -20,9 +20,6 @@ export const userRoleEnum = pgEnum('user_role', [
   'district_officer',
   'national_war_room',
   'brics_analyst',
-  'state_admin',
-  'procurement_officer',
-  'compliance_auditor',
 ]);
 
 export const facilityLevelEnum = pgEnum('facility_level', ['PHC', 'CHC', 'DH']);

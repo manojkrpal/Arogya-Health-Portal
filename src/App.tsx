@@ -44,14 +44,7 @@ function ArogyaNetApp() {
       case 'brics_analyst':
         setActiveTab('federation');
         break;
-      case 'procurement_officer':
-        setActiveTab('orders');
-        break;
-      case 'compliance_auditor':
-        setActiveTab('audit');
-        break;
       case 'district_officer':
-      case 'state_admin':
       default:
         setActiveTab('map');
         break;

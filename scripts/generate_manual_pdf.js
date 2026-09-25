@@ -262,7 +262,7 @@ renderFeatureSection(
     'Click "Propose New Transfer" or select an auto-recommended proposal generated from an alert.',
     'The deterministic optimizer selects the nearest donor facility that satisfies all 4 safety invariants.',
     'Review the transfer order details (From, To, SKU, Quantity, Transit Distance).',
-    'Click "Approve & Execute Stock Transfer" (District Officer / State Admin only).',
+    'Click "Approve & Execute Stock Transfer" (District Officer / War Room Command only).',
     'The server runs an atomic PostgreSQL transaction (SELECT ... FOR UPDATE) to deduct FIFO lots and credit the recipient.'
   ],
   'Talegaon CHC sends 50 vials of Insulin to Shirur PHC. Lot #INS-2026-04 with earliest expiration date (Nov 2026) is automatically consumed first, avoiding waste and stock drift.'
@@ -308,7 +308,7 @@ renderFeatureSection(
   '12. SYSTEM AUDIT TRAIL, COMPLIANCE & OFFLINE RESILIENCE',
   'Maintains an immutable, tamper-evident audit ledger of every inventory adjustment, transfer authorization, and security event, alongside seamless offline synchronization for rural areas with intermittent connectivity.',
   [
-    'Access the "Audit & Security" tab (Auditors and State Admins).',
+    'Access the "Audit & Security" tab (District Officers and War Room Command).',
     'Review the chronological log entries containing Timestamp, User ID, Role, Action Type, and Cryptographic Hash.',
     'Offline Capability: If internet cuts out, a yellow banner "Offline Mode — Changes Queued Locally" appears.',
     'Continue updating stock and beds; all changes are queued in browser IndexedDB/LocalStorage and auto-sync when connection restores.'

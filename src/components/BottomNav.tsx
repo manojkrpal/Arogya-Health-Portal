@@ -141,59 +141,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           },
         ];
 
-      case 'procurement_officer':
-        return [
-          {
-            id: 'orders',
-            label: 'Drug Orders (POs)',
-            icon: ShoppingCart,
-            activeMatcher: (tab) => tab === 'orders',
-          },
-          {
-            id: 'grid',
-            label: 'National Supply',
-            icon: Building2,
-            activeMatcher: (tab) => tab === 'grid',
-          },
-          {
-            id: 'stock',
-            label: 'Warehouse Stock',
-            icon: Package,
-            activeMatcher: (tab) => tab === 'stock',
-          },
-          {
-            id: 'transfers',
-            label: 'Consignments',
-            icon: Truck,
-            badge: transferCount,
-            activeMatcher: (tab) => tab === 'transfers',
-          },
-        ];
-
-      case 'compliance_auditor':
-        return [
-          {
-            id: 'audit',
-            label: 'Audit Trail',
-            icon: ShieldCheck,
-            activeMatcher: (tab) => tab === 'audit',
-          },
-          {
-            id: 'grid',
-            label: 'National Grid',
-            icon: Building2,
-            activeMatcher: (tab) => tab === 'grid',
-          },
-          {
-            id: 'federation',
-            label: 'Zero-PHI Proofs',
-            icon: Globe2,
-            activeMatcher: (tab) => tab === 'federation',
-          },
-        ];
-
       case 'district_officer':
-      case 'state_admin':
       default:
         return [
           {

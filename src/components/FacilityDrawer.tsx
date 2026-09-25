@@ -72,7 +72,6 @@ export const FacilityDrawer: React.FC<FacilityDrawerProps> = ({
   const canEdit =
     user?.role === 'district_officer' ||
     user?.role === 'national_war_room' ||
-    user?.role === 'state_admin' ||
     (user?.role === 'phc_nurse' && user?.facilityId === facility?.id);
 
   // Fetch full details for facility

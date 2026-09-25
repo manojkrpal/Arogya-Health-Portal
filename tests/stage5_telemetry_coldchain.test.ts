@@ -76,7 +76,7 @@ async function main() {
   const complianceToken = generateToken({
     userId: complianceUser.id,
     email: complianceUser.email,
-    role: 'compliance_auditor',
+    role: 'compliance_auditor' as any,
     tenantId: complianceUser.tenant_id,
     facilityId: null,
   });

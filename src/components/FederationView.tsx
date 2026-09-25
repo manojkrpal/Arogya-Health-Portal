@@ -31,7 +31,7 @@ export const FederationView: React.FC<FederationViewProps> = ({ initialSubTab = 
     }
   }, [initialSubTab]);
 
-  const canViewAudit = ['compliance_auditor', 'national_war_room', 'state_admin', 'district_officer', 'brics_analyst'].includes(user?.role || '');
+  const canViewAudit = ['national_war_room', 'district_officer', 'brics_analyst'].includes(user?.role || '');
 
   useEffect(() => {
     async function fetchFederation() {

@@ -59,30 +59,6 @@ export const DEMO_USERS = [
     password: 'analyst123',
     badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
   },
-  {
-    role: 'state_admin',
-    title: 'State Admin',
-    facility: 'Maharashtra State IT',
-    email: 'admin@maharashtra.health.gov.in',
-    password: 'admin123',
-    badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
-  },
-  {
-    role: 'procurement_officer',
-    title: 'Procurement Officer',
-    facility: 'Maharashtra Medical Supplies',
-    email: 'procurement@maharashtra.gov.in',
-    password: 'procure123',
-    badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-  },
-  {
-    role: 'compliance_auditor',
-    title: 'Compliance Auditor',
-    facility: 'National Audit Cell',
-    email: 'auditor@mohfw.gov.in',
-    password: 'auditor123',
-    badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
-  },
 ];
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {

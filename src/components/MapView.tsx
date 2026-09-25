@@ -134,8 +134,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
   const canRegisterFacility =
     user?.role === 'district_officer' ||
-    user?.role === 'national_war_room' ||
-    user?.role === 'state_admin';
+    user?.role === 'national_war_room';
 
   const handleCreateFacility = async (e: React.FormEvent) => {
     e.preventDefault();

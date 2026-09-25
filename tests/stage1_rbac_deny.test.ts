@@ -50,9 +50,9 @@ async function runStage1Tests() {
     });
   }
 
-  const tokenStateAdmin = makeToken('state_admin');
-  const tokenProcurement = makeToken('procurement_officer');
-  const tokenAuditor = makeToken('compliance_auditor');
+  const tokenStateAdmin = makeToken('state_admin' as any);
+  const tokenProcurement = makeToken('procurement_officer' as any);
+  const tokenAuditor = makeToken('compliance_auditor' as any);
   const tokenBrics = makeToken('brics_analyst');
   const tokenNurse = makeToken('phc_nurse', { facilityId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' });
   const tokenOfficer = makeToken('district_officer');

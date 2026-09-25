@@ -49,7 +49,7 @@ async function runStage4Tests() {
   const nurseUser = userMap.get('phc_nurse') || { facility_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' };
   const nurseFacilityId = nurseUser.facility_id || 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
-  const tokenAuditor = makeToken('compliance_auditor');
+  const tokenAuditor = makeToken('compliance_auditor' as any);
   const tokenWarRoom = makeToken('national_war_room');
   const tokenOfficer = makeToken('district_officer');
   const tokenNurse = makeToken('phc_nurse', { facilityId: nurseFacilityId });

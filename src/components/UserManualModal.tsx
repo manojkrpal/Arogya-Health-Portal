@@ -32,7 +32,7 @@ type TabType = 'guide' | 'pdf' | 'roles' | 'faq';
 export const UserManualModal: React.FC<UserManualModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<TabType>('guide');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRole, setSelectedRole] = useState<'all' | 'nurse' | 'officer' | 'procurement' | 'state'>('all');
+  const [selectedRole, setSelectedRole] = useState<'all' | 'nurse' | 'officer' | 'warroom'>('all');
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
@@ -179,17 +179,17 @@ export const UserManualModal: React.FC<UserManualModalProps> = ({ isOpen, onClos
     },
     {
       id: 'national-grid',
-      title: '8. National Health Grid & Procurement POs',
-      category: 'procurement',
+      title: '8. National Health Grid & Purchase Orders (POs)',
+      category: 'warroom',
       icon: Layers,
-      purpose: 'Empower State Health Directors and Central Procurement Officers to oversee inter-district supply pipelines and manage bulk vendor Purchase Orders.',
+      purpose: 'Empower National Command (War Room) and District Health Officers to oversee inter-district supply pipelines and manage bulk vendor Purchase Orders.',
       howToUse: [
-        'Switch to "Procurement Officer" or "National War Room" role.',
+        'Switch to "National War Room" or "District Officer" role.',
         'Access the "National Grid" and "Purchase Orders" tabs.',
         'Review district-wide inventory reserves, pipeline replenishment orders, and supplier delivery lead-times.',
         'Draft and approve new bulk purchase orders with 1-click.',
       ],
-      example: 'State Procurement Officer reviews Sangli District and spots impending district-wide Amoxicillin shortages. She issues Purchase Order #PO-9042 for 15,000 units directly to the state warehouse vendor.',
+      example: 'National War Room Commander reviews Pune District and spots impending district-wide Amoxicillin shortages. They issue Purchase Order #PO-9042 for 15,000 units directly to the central medical distributor.',
       tips: 'Integrates with national supply chain systems for seamless consignment tracking.',
     },
     {
@@ -234,8 +234,7 @@ export const UserManualModal: React.FC<UserManualModalProps> = ({ isOpen, onClos
       selectedRole === 'all' ||
       (selectedRole === 'nurse' && (sec.category === 'nurse' || sec.id === 'offline-sync')) ||
       (selectedRole === 'officer' && (sec.category === 'officer' || sec.id === 'gis-map' || sec.id === 'surge-engine')) ||
-      (selectedRole === 'procurement' && (sec.category === 'procurement' || sec.id === 'transfers-logistics')) ||
-      (selectedRole === 'state' && (sec.category === 'procurement' || sec.category === 'officer'));
+      (selectedRole === 'warroom' && (sec.category === 'warroom' || sec.id === 'transfers-logistics' || sec.id === 'national-grid'));
 
     return matchesSearch && matchesRole;
   });
@@ -402,7 +401,7 @@ export const UserManualModal: React.FC<UserManualModalProps> = ({ isOpen, onClos
                     { id: 'all', label: 'All Features (10)' },
                     { id: 'nurse', label: 'PHC Staff & Nurses' },
                     { id: 'officer', label: 'Medical & District Officers' },
-                    { id: 'procurement', label: 'Procurement & Logistics' },
+                    { id: 'warroom', label: 'National War Room (MoHFW)' },
                   ] as const
                 ).map((role) => (
                   <button
@@ -608,16 +607,16 @@ export const UserManualModal: React.FC<UserManualModalProps> = ({ isOpen, onClos
                   </ol>
                 </div>
 
-                {/* 4. State & Procurement */}
+                {/* 4. National Command / War Room */}
                 <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2.5">
                   <div className="flex items-center gap-2 text-indigo-400 font-bold text-sm">
                     <Layers className="w-4 h-4" />
-                    <span>State Director & Procurement Workflow</span>
+                    <span>National Command / War Room (MoHFW) Workflow</span>
                   </div>
                   <ol className="text-xs text-slate-300 space-y-1.5 list-decimal pl-4">
-                    <li>Monitor <strong>National Health Grid</strong> for macro supply imbalances.</li>
-                    <li>Issue and sign central <strong>Purchase Orders (POs)</strong> for state warehouse replenishments.</li>
-                    <li>Export Zero-PHI audit logs for central MOHFW compliance reporting.</li>
+                    <li>Monitor <strong>National Health Grid</strong> for macro supply imbalances across districts.</li>
+                    <li>Issue and authorize central <strong>Purchase Orders (POs)</strong> for medical supplier replenishments.</li>
+                    <li>Inspect cryptographic Zero-PHI audit logs for National Health Mission compliance.</li>
                   </ol>
                 </div>
               </div>

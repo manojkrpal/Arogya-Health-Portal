@@ -234,7 +234,7 @@ apiRouter.get('/map/snapshot', async (req: Request, res: Response) => {
         whereClause = 'WHERE f.tenant_id = $1';
         queryParams.push(user.tenantId);
       }
-    } else if (user.role === 'national_war_room' || user.role === 'state_admin' || user.role === 'procurement_officer' || user.role === 'compliance_auditor') {
+    } else if (user.role === 'national_war_room') {
       whereClause = "WHERE t.country_code = 'IN' OR t.country_code IS NULL";
     }
 
@@ -586,7 +586,7 @@ apiRouter.get('/facilities/:id', async (req: Request, res: Response) => {
  * POST /v1/facilities
  * Create a new health facility in PostgreSQL and sync to Firestore
  */
-apiRouter.post('/facilities', requireRole('district_officer', 'national_war_room', 'state_admin'), async (req: Request, res: Response) => {
+apiRouter.post('/facilities', requireRole('district_officer', 'national_war_room'), async (req: Request, res: Response) => {
   const user = (req as any).user as TokenPayload;
   const {
     name,
@@ -728,7 +728,7 @@ apiRouter.post('/facilities', requireRole('district_officer', 'national_war_room
  * PUT /v1/facilities/:id
  * Update facility core metadata (name, level, district, lat, lng, coldChainCapable)
  */
-apiRouter.put('/facilities/:id', requireRole('district_officer', 'national_war_room', 'state_admin'), async (req: Request, res: Response) => {
+apiRouter.put('/facilities/:id', requireRole('district_officer', 'national_war_room'), async (req: Request, res: Response) => {
   const user = (req as any).user as TokenPayload;
   const { id } = req.params;
   const { name, code, level, district, lat, lng, coldChainCapable } = req.body;
@@ -809,7 +809,7 @@ apiRouter.put('/facilities/:id', requireRole('district_officer', 'national_war_r
 /**
  * DELETE /v1/facilities/:id
  */
-apiRouter.delete('/facilities/:id', requireRole('district_officer', 'national_war_room', 'state_admin'), async (req: Request, res: Response) => {
+apiRouter.delete('/facilities/:id', requireRole('district_officer', 'national_war_room'), async (req: Request, res: Response) => {
   const user = (req as any).user as TokenPayload;
   const { id } = req.params;
 
@@ -1180,14 +1180,14 @@ const handleFacilityStockEndpoint = async (req: Request, res: Response) => {
   }
 };
 
-apiRouter.patch('/facilities/:id/stock', requireRole('phc_nurse', 'district_officer', 'national_war_room', 'state_admin'), handleFacilityStockEndpoint);
-apiRouter.post('/facilities/:id/stock', requireRole('phc_nurse', 'district_officer', 'national_war_room', 'state_admin'), handleFacilityStockEndpoint);
+apiRouter.patch('/facilities/:id/stock', requireRole('phc_nurse', 'district_officer', 'national_war_room'), handleFacilityStockEndpoint);
+apiRouter.post('/facilities/:id/stock', requireRole('phc_nurse', 'district_officer', 'national_war_room'), handleFacilityStockEndpoint);
 
 /**
  * POST /v1/facilities/:id/stock/seed-essential
  * Seed or restock all standard essential medicines for the facility
  */
-apiRouter.post('/facilities/:id/stock/seed-essential', requireRole('phc_nurse', 'district_officer', 'national_war_room', 'state_admin'), async (req: Request, res: Response) => {
+apiRouter.post('/facilities/:id/stock/seed-essential', requireRole('phc_nurse', 'district_officer', 'national_war_room'), async (req: Request, res: Response) => {
   const user = (req as any).user as TokenPayload;
   let { id } = req.params;
   if (id === 'my-facility' || id === 'current' || (!id && user.facilityId)) {
@@ -1252,7 +1252,7 @@ apiRouter.post('/facilities/:id/stock/seed-essential', requireRole('phc_nurse', 
 /**
  * PATCH /v1/capacity
  */
-apiRouter.patch('/capacity', requireRole('phc_nurse', 'district_officer', 'national_war_room', 'state_admin'), async (req: Request, res: Response) => {
+apiRouter.patch('/capacity', requireRole('phc_nurse', 'district_officer', 'national_war_room'), async (req: Request, res: Response) => {
   const user = (req as any).user as TokenPayload;
   const {
     facilityId,
@@ -1375,7 +1375,7 @@ apiRouter.patch('/capacity', requireRole('phc_nurse', 'district_officer', 'natio
  * PATCH /v1/facilities/:id/meta
  * Update bed capacity, ICU beds, oxygen, and staff attendance in one place
  */
-apiRouter.patch('/facilities/:id/meta', requireRole('phc_nurse', 'district_officer', 'national_war_room', 'state_admin'), async (req: Request, res: Response) => {
+apiRouter.patch('/facilities/:id/meta', requireRole('phc_nurse', 'district_officer', 'national_war_room'), async (req: Request, res: Response) => {
   const user = (req as any).user as TokenPayload;
   let { id } = req.params;
   if (id === 'my-facility' || id === 'current' || (!id && user.facilityId)) {
@@ -1568,7 +1568,7 @@ apiRouter.patch('/facilities/:id/meta', requireRole('phc_nurse', 'district_offic
 /**
  * PATCH /v1/facilities/:id/stock
  */
-apiRouter.patch('/facilities/:id/stock', requireRole('phc_nurse', 'district_officer', 'national_war_room', 'state_admin'), async (req: Request, res: Response) => {
+apiRouter.patch('/facilities/:id/stock', requireRole('phc_nurse', 'district_officer', 'national_war_room'), async (req: Request, res: Response) => {
   const user = (req as any).user as TokenPayload;
   let { id } = req.params;
   if (id === 'my-facility' || id === 'current' || (!id && user.facilityId)) {
@@ -2092,7 +2092,7 @@ apiRouter.get('/federation/model-card', async (req: Request, res: Response) => {
  * Query immutable audit trail with cryptographic integrity hashes and Zero-PHI assurance.
  * Strictly forbidden for brics_analyst (403).
  */
-apiRouter.get('/audit/events', requireRole('compliance_auditor', 'national_war_room', 'state_admin', 'district_officer'), async (req: Request, res: Response) => {
+apiRouter.get('/audit/events', requireRole('national_war_room', 'district_officer'), async (req: Request, res: Response) => {
   const { action, entity, limit = '50', offset = '0' } = req.query;
   const numLimit = Math.min(200, Math.max(1, parseInt(limit as string, 10) || 50));
   const numOffset = Math.max(0, parseInt(offset as string, 10) || 0);
@@ -2175,7 +2175,7 @@ apiRouter.get('/audit/events', requireRole('compliance_auditor', 'national_war_r
  * Computes chained cumulative cryptographic SHA-256 digest across all historical audit events
  * and verifies zero-PHI constraints on every recorded action.
  */
-apiRouter.get('/audit/verify', requireRole('compliance_auditor', 'national_war_room', 'state_admin'), async (req: Request, res: Response) => {
+apiRouter.get('/audit/verify', requireRole('national_war_room', 'district_officer'), async (req: Request, res: Response) => {
   try {
     const allRes = await query(
       `SELECT id, at, actor_id, action, entity, entity_id, payload, request_id
@@ -2227,7 +2227,7 @@ apiRouter.get('/audit/verify', requireRole('compliance_auditor', 'national_war_r
  * POST /v1/offline/sync-batch
  * Replays queued offline operations with idempotency guarantees.
  */
-apiRouter.post('/offline/sync-batch', requireRole('phc_nurse', 'district_officer', 'national_war_room', 'state_admin'), async (req: Request, res: Response) => {
+apiRouter.post('/offline/sync-batch', requireRole('phc_nurse', 'district_officer', 'national_war_room'), async (req: Request, res: Response) => {
   const user = (req as any).user as TokenPayload;
   const { items } = req.body;
 
@@ -2425,7 +2425,7 @@ apiRouter.get(
   '/telemetry/live',
   authenticateToken,
   bricsSecurityCheck,
-  requireRole(['phc_nurse', 'district_officer', 'national_war_room', 'state_admin', 'procurement_officer', 'compliance_auditor']),
+  requireRole(['phc_nurse', 'district_officer', 'national_war_room']),
   async (req: Request, res: Response) => {
     try {
       const data = await getLiveTelemetry();
@@ -2445,7 +2445,7 @@ apiRouter.post(
   '/telemetry/ingest',
   authenticateToken,
   bricsSecurityCheck,
-  requireRole(['phc_nurse', 'district_officer', 'national_war_room', 'state_admin']),
+  requireRole(['phc_nurse', 'district_officer', 'national_war_room']),
   async (req: Request, res: Response) => {
     const { facilityId, deviceId, temperature, batteryPct, doorOpen, powerSource } = req.body;
     const reqId = (req as any).requestId || `iot_${Date.now()}`;
@@ -2489,7 +2489,7 @@ apiRouter.get(
   '/expiry/radar',
   authenticateToken,
   bricsSecurityCheck,
-  requireRole(['phc_nurse', 'district_officer', 'national_war_room', 'state_admin', 'procurement_officer', 'compliance_auditor']),
+  requireRole(['phc_nurse', 'district_officer', 'national_war_room']),
   async (req: Request, res: Response) => {
     try {
       const data = await getExpiryRadar();
@@ -2509,7 +2509,7 @@ apiRouter.get(
   '/routes/dispatch-plan',
   authenticateToken,
   bricsSecurityCheck,
-  requireRole(['phc_nurse', 'district_officer', 'national_war_room', 'state_admin', 'procurement_officer', 'compliance_auditor']),
+  requireRole(['phc_nurse', 'district_officer', 'national_war_room']),
   async (req: Request, res: Response) => {
     try {
       const plans = await getDispatchRoutePlans();
@@ -2673,7 +2673,7 @@ apiRouter.post(
   '/drones/dispatch',
   bricsSecurityCheck,
   authenticateToken,
-  requireRole(['district_officer', 'national_war_room', 'state_admin', 'procurement_officer']),
+  requireRole(['district_officer', 'national_war_room']),
   async (req: Request, res: Response): Promise<void> => {
     try {
       const user = (req as any).user as TokenPayload;
@@ -2707,7 +2707,7 @@ apiRouter.post(
   '/drones/land',
   bricsSecurityCheck,
   authenticateToken,
-  requireRole(['district_officer', 'national_war_room', 'phc_nurse', 'state_admin']),
+  requireRole(['district_officer', 'national_war_room', 'phc_nurse']),
   async (req: Request, res: Response): Promise<void> => {
     try {
       const user = (req as any).user as TokenPayload;
@@ -2809,7 +2809,7 @@ apiRouter.post(
   '/procurement/orders',
   bricsSecurityCheck,
   authenticateToken,
-  requireRole(['procurement_officer', 'state_admin', 'national_war_room']),
+  requireRole(['national_war_room', 'district_officer']),
   async (req: Request, res: Response): Promise<void> => {
     try {
       const user = (req as any).user as TokenPayload;
@@ -2846,7 +2846,7 @@ apiRouter.patch(
   '/procurement/orders/:id/receive',
   bricsSecurityCheck,
   authenticateToken,
-  requireRole(['procurement_officer', 'state_admin', 'district_officer']),
+  requireRole(['national_war_room', 'district_officer']),
   async (req: Request, res: Response): Promise<void> => {
     try {
       const user = (req as any).user as TokenPayload;
