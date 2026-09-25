@@ -160,22 +160,22 @@ export const MapView: React.FC<MapViewProps> = ({
       {/* Top Filter and Search Bar */}
       <div className="absolute top-2 left-2 right-2 z-20 flex flex-col gap-1.5 max-w-lg mx-auto pointer-events-auto">
         <div className="flex items-center gap-1.5 bg-slate-900/90 backdrop-blur p-1.5 rounded-xl border border-slate-800 shadow-xl">
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-0">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Search PHC, CHC, or District..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-2 py-1 text-xs bg-slate-800/80 border border-slate-700/80 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-500"
+              className="w-full pl-8 pr-2 py-1 text-xs bg-slate-800/80 border border-slate-700/80 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-500 truncate"
             />
           </div>
 
           {/* Filter status pills */}
-          <div className="flex items-center gap-1 text-[10px] font-semibold">
+          <div className="flex items-center gap-1 text-[10px] font-semibold shrink-0">
             <button
               onClick={() => setFilterStatus(filterStatus === 'critical' ? 'all' : 'critical')}
-              className={`px-2 py-1 rounded-md transition border ${
+              className={`px-2 py-1 rounded-md transition border shrink-0 ${
                 filterStatus === 'critical'
                   ? 'bg-rose-500 text-white border-rose-400'
                   : 'bg-rose-500/15 text-rose-300 border-rose-500/20 hover:bg-rose-500/25'
@@ -186,16 +186,16 @@ export const MapView: React.FC<MapViewProps> = ({
             {canRegisterFacility && (
               <button
                 onClick={() => setShowAddModal(true)}
-                className="px-2 py-1 rounded-md bg-teal-600 hover:bg-teal-500 text-white border border-teal-500 flex items-center gap-1 font-bold shadow shadow-teal-500/20"
+                className="px-2 py-1 rounded-md bg-teal-600 hover:bg-teal-500 text-white border border-teal-500 flex items-center gap-1 font-bold shadow shadow-teal-500/20 shrink-0"
                 title="Register a new Health Facility in database"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Facility</span>
+                <span className="hidden xs:inline">Facility</span>
               </button>
             )}
             <button
               onClick={() => setUseSchematicView(!useSchematicView)}
-              className={`p-1.5 rounded-md border transition ${
+              className={`p-1.5 rounded-md border transition shrink-0 ${
                 useSchematicView
                   ? 'bg-teal-500 text-slate-950 border-teal-400'
                   : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
@@ -206,7 +206,7 @@ export const MapView: React.FC<MapViewProps> = ({
             </button>
             <button
               onClick={onRefresh}
-              className="p-1.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition"
+              className="p-1.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition shrink-0"
               title="Refresh clinic telemetry"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-teal-400' : ''}`} />

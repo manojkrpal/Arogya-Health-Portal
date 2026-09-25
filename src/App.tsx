@@ -157,7 +157,7 @@ function ArogyaNetApp() {
       : transfers;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-teal-500 selection:text-white">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 text-slate-100 flex flex-col selection:bg-teal-500 selection:text-white">
       {/* Top Application Header */}
       <Navbar
         outbreakMultiplier={outbreakMultiplier}

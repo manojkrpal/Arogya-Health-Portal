@@ -8,11 +8,8 @@ import {
   Activity,
   UserCheck,
   Languages,
-  Wifi,
-  WifiOff,
   ChevronDown,
   Mic,
-  FileText,
   BookOpen,
 } from 'lucide-react';
 
@@ -29,7 +26,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogoClick,
   onRefreshData,
 }) => {
-  const { user, switchRole, lang, setLang, isOnline, t } = useAuth();
+  const { user, switchRole, lang, setLang, t } = useAuth();
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
@@ -50,45 +47,43 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         )}
 
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2">
+        <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-1 sm:gap-2">
           {/* Logo & Title */}
           <button
             id="navbar-logo-btn"
             type="button"
             onClick={onLogoClick}
-            className="flex items-center gap-2.5 text-left group hover:opacity-90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded-lg p-0.5 -m-0.5 cursor-pointer"
+            className="flex items-center gap-1.5 sm:gap-2.5 text-left group hover:opacity-90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded-lg p-0.5 cursor-pointer min-w-0 shrink"
             title="Go to Map (Home)"
             aria-label="ArogyaNet Home"
           >
-            <div className="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center text-slate-950 font-black shadow-md shadow-teal-500/20 group-hover:scale-105 transition-transform">
-              <Activity className="w-5 h-5 text-slate-950" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-teal-500 flex items-center justify-center text-slate-950 font-black shadow-md shadow-teal-500/20 group-hover:scale-105 transition-transform shrink-0">
+              <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-slate-950" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold text-slate-100 tracking-tight leading-none group-hover:text-teal-300 transition-colors">
-                  {t.appName || 'ArogyaNet'}
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-xs sm:text-base font-bold text-slate-100 tracking-tight leading-none group-hover:text-teal-300 transition-colors truncate">
+                  <span className="sm:hidden">ArogyaNet</span>
+                  <span className="hidden sm:inline">{t.appName || 'ArogyaNet'}</span>
                 </h1>
-                <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-teal-500/15 text-teal-300 border border-teal-500/20">
-                  PHC MVP
-                </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-normal leading-tight hidden xs:block">
+              <p className="text-[10px] sm:text-[11px] text-slate-400 font-normal leading-tight hidden md:block">
                 {t.nationalGrid || 'National Medicine, Bed & Attendance Grid'}
               </p>
             </div>
           </button>
 
           {/* Right Action Controls */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {/* Voice Assistant Mic Button for Remote Nurses */}
             <button
               id="voice-assistant-navbar-btn"
               onClick={() => setShowVoiceModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 hover:text-teal-200 text-xs font-semibold border border-teal-500/30 transition shadow-sm animate-pulse-subtle"
+              className="flex items-center justify-center w-7 h-7 sm:w-auto sm:h-auto p-1 sm:px-2.5 sm:py-1.5 rounded-lg bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 hover:text-teal-200 text-xs font-semibold border border-teal-500/30 transition shadow-sm animate-pulse-subtle shrink-0"
               title="Voice Assistant: Dictate inventory updates in English, Hindi, Marathi, Bengali"
             >
               <Mic className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-              <span className="hidden sm:inline">Voice Assistant</span>
+              <span className="hidden md:inline ml-1.5">Voice Assistant</span>
             </button>
 
             {/* User Manual Button (Interactive Guide & PDF Reader) */}
@@ -96,40 +91,28 @@ export const Navbar: React.FC<NavbarProps> = ({
               id="user-manual-btn"
               type="button"
               onClick={() => setShowManualModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 hover:text-sky-200 text-xs font-semibold border border-sky-500/30 transition shadow-sm cursor-pointer"
+              className="flex items-center justify-center w-7 h-7 sm:w-auto sm:h-auto p-1 sm:px-2.5 sm:py-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 hover:text-sky-200 text-xs font-semibold border border-sky-500/30 transition shadow-sm cursor-pointer shrink-0"
               title="Open ArogyaNet User Manual, Interactive Field Guide & PDF"
             >
               <BookOpen className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-              <span className="hidden sm:inline">User Manual</span>
+              <span className="hidden md:inline ml-1.5">User Manual</span>
             </button>
 
-            {/* Online/Offline status */}
-            <div
-              id="network-status-badge"
-              title={isOnline ? 'Connected (Cloud SQL real-time sync)' : 'Offline mode'}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium border ${
-                isOnline
-                  ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40'
-                  : 'bg-rose-950/40 text-rose-300 border-rose-800/40'
-              }`}
-            >
-              {isOnline ? <Wifi className="w-3 h-3 text-emerald-400" /> : <WifiOff className="w-3 h-3 text-rose-400" />}
-              <span className="hidden md:inline">{isOnline ? 'Online' : 'Offline'}</span>
-            </div>
-
             {/* Multilingual Selector Dropdown (English, Hindi, Marathi, Bengali) */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 id="language-selector-btn"
                 onClick={() => setShowLangMenu(!showLangMenu)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition"
+                className="flex items-center justify-center h-7 sm:h-auto px-1.5 py-1 sm:px-2 sm:py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition shrink-0"
                 title="Select interface and AI voice language"
               >
-                <Languages className="w-3.5 h-3.5 text-teal-400" />
-                <span className="font-medium">
-                  {currentLang.flag} {currentLang.scriptName}
+                <span className="text-xs">
+                  {currentLang.flag}
                 </span>
-                <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
+                <span className="font-medium hidden sm:inline ml-1">
+                  {currentLang.scriptName}
+                </span>
+                <ChevronDown className="w-2.5 h-2.5 text-slate-400 shrink-0 ml-0.5" />
               </button>
 
               {showLangMenu && (
@@ -170,27 +153,26 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* Quick Role Switcher Pill */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
+                id="role-switcher-btn"
                 onClick={() => setShowRoleMenu(!showRoleMenu)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-xs font-medium border border-slate-700 transition text-left"
+                className="flex items-center gap-1 h-7 sm:h-auto px-1.5 sm:px-2 sm:py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-xs font-medium border border-slate-700 transition text-left shrink-0"
+                title="Switch Demo Role"
               >
                 <UserCheck className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-                <div className="leading-tight">
-                  <span className="text-[10px] text-slate-400 block font-normal">Role:</span>
-                  <span className="text-slate-200 font-semibold truncate max-w-[80px] sm:max-w-none block">
-                    {user?.role === 'phc_nurse'
-                      ? 'Nurse'
-                      : user?.role === 'district_officer'
-                      ? 'Officer'
-                      : user?.role === 'national_war_room'
-                      ? 'War Room'
-                      : user?.role === 'brics_analyst'
-                      ? 'BRICS'
-                      : 'Switch'}
-                  </span>
-                </div>
-                <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
+                <span className="text-slate-200 font-semibold text-[11px] sm:text-xs">
+                  {user?.role === 'phc_nurse'
+                    ? 'Nurse'
+                    : user?.role === 'district_officer'
+                    ? 'Officer'
+                    : user?.role === 'national_war_room'
+                    ? 'War Room'
+                    : user?.role === 'brics_analyst'
+                    ? 'BRICS'
+                    : 'Switch'}
+                </span>
+                <ChevronDown className="w-2.5 h-2.5 text-slate-400 shrink-0" />
               </button>
 
               {/* Dropdown Role Selector */}
