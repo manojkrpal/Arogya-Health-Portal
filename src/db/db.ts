@@ -30,29 +30,52 @@ export function getDbEngine(): 'external_postgres' | 'embedded_postgres' {
 export async function initDb(): Promise<void> {
   if (isInitialized) return;
 
-  const sqlHost = process.env.SQL_HOST;
+  let sqlHost = process.env.SQL_HOST;
   const sqlUser = process.env.SQL_USER;
   const sqlPassword = process.env.SQL_PASSWORD;
   const sqlDbName = process.env.SQL_DB_NAME;
 
+  // In Cloud Run or published environments, unix socket paths might be at /cloudsql/ instead of /app/cloudsql/
+  if (sqlHost && sqlHost.startsWith('/')) {
+    if (!fs.existsSync(sqlHost)) {
+      if (sqlHost.startsWith('/app/cloudsql/')) {
+        const alt = sqlHost.replace('/app/cloudsql/', '/cloudsql/');
+        if (fs.existsSync(alt)) {
+          sqlHost = alt;
+        }
+      } else if (sqlHost.startsWith('/cloudsql/')) {
+        const alt = sqlHost.replace('/cloudsql/', '/app/cloudsql/');
+        if (fs.existsSync(alt)) {
+          sqlHost = alt;
+        }
+      }
+    }
+  }
+
   if (sqlHost && sqlUser && sqlDbName) {
     try {
       console.log(`[DB] Connecting to Cloud SQL via Object Method at host=${sqlHost}, db=${sqlDbName}...`);
-      pgPool = new pg.Pool({
+      const pool = new pg.Pool({
         host: sqlHost,
         user: sqlUser,
         password: sqlPassword,
         database: sqlDbName,
         max: 10,
-        connectionTimeoutMillis: 15000,
+        connectionTimeoutMillis: 5000,
       });
 
-      pgPool.on('error', (err) => {
+      pool.on('error', (err) => {
         console.error('Unexpected error on idle SQL pool client:', err);
       });
 
+      // Actually test connectivity
+      const client = await pool.connect();
+      await client.query('SELECT 1');
+      client.release();
+
+      pgPool = pool;
       usingEngine = 'external_postgres';
-      console.log('[DB] Connected to Cloud SQL PostgreSQL instance.');
+      console.log('[DB] Connected successfully to Cloud SQL PostgreSQL instance.');
     } catch (err) {
       console.warn('[DB] Failed to connect to Cloud SQL, falling back to embedded PostgreSQL (PGlite):', err);
       pgPool = null;
@@ -64,7 +87,7 @@ export async function initDb(): Promise<void> {
     if (dbUrl && dbUrl.trim().length > 0) {
       try {
         console.log(`[DB] Connecting to external PostgreSQL at ${dbUrl.replace(/:[^:@]+@/, ':***@')}...`);
-        pgPool = new pg.Pool({
+        const pool = new pg.Pool({
           connectionString: dbUrl,
           ssl: dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1') ? false : { rejectUnauthorized: false },
           max: 10,
@@ -72,6 +95,11 @@ export async function initDb(): Promise<void> {
           connectionTimeoutMillis: 5000,
         });
 
+        const client = await pool.connect();
+        await client.query('SELECT 1');
+        client.release();
+
+        pgPool = pool;
         usingEngine = 'external_postgres';
         console.log('[DB] Connected successfully to external PostgreSQL instance.');
       } catch (err) {
@@ -102,7 +130,7 @@ export async function initDb(): Promise<void> {
     await applySchemaAndSeed();
   } else {
     console.log('[DB] Cloud SQL schema and tables managed via Drizzle.');
-    // Ensure table cold_chain_telemetry exists
+    // Ensure table cold_chain_telemetry and demo users exist
     try {
       const client = await pgPool!.connect();
       try {
@@ -120,6 +148,22 @@ export async function initDb(): Promise<void> {
           CREATE INDEX IF NOT EXISTS idx_telemetry_facility_time ON cold_chain_telemetry(facility_id, recorded_at DESC);
           ALTER TABLE capacity ADD COLUMN IF NOT EXISTS icu_total INT NOT NULL DEFAULT 2;
           ALTER TABLE capacity ADD COLUMN IF NOT EXISTS icu_available INT NOT NULL DEFAULT 1;
+        `);
+
+        // Ensure National War Room and all demo accounts exist with active credentials
+        await client.query(`
+          INSERT INTO tenants (id, code, name, country_code, residency)
+          VALUES ('11111111-1111-1111-1111-111111111111', 'MH-PUNE-RURAL', 'Pune Rural District', 'IN', 'India/IN-West')
+          ON CONFLICT (code) DO NOTHING;
+
+          INSERT INTO users (id, tenant_id, email, password_hash, role, facility_id)
+          VALUES
+          ('90000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'nurse@shirur.phc.gov.in', '$2b$10$ahSZWIQcqkOMyLO/Jftj5.7Jls1IWcY6NVxBXnH/f70YS/EMXtMxS', 'phc_nurse', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+          ('90000000-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111111', 'nurse@manchar.chc.gov.in', '$2b$10$ahSZWIQcqkOMyLO/Jftj5.7Jls1IWcY6NVxBXnH/f70YS/EMXtMxS', 'phc_nurse', 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
+          ('90000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'officer@pune.health.gov.in', '$2b$10$hJn4S5RU8bdF.MLSnRaW1.F3Ttyfgu8hsOF52DTqjVGFCVe5N2.3y', 'district_officer', NULL),
+          ('90000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'warroom@mohfw.gov.in', '$2b$10$h6wcLy7yBlG147J1aXD.4Ogf1V4wGeIMvdh2Wgdlk.zYdRO4i9rLK', 'national_war_room', NULL),
+          ('90000000-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', 'analyst@brics-health.org', '$2b$10$/VLvVDSaW1/caHKcutzyl.WmIKtM7xIwjtU0hASa0AxuD3BPwMtai', 'brics_analyst', NULL)
+          ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = EXCLUDED.role;
         `);
       } finally {
         client.release();

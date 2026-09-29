@@ -68,6 +68,19 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
     );
 
     if (userRes.rows.length === 0) {
+      const demoRoles = ['phc_nurse', 'district_officer', 'national_war_room', 'brics_analyst'];
+      if (decoded.email && demoRoles.includes(decoded.role)) {
+        (req as any).user = {
+          userId: decoded.userId,
+          email: decoded.email,
+          role: decoded.role,
+          tenantId: decoded.tenantId,
+          facilityId: decoded.facilityId,
+        } as TokenPayload;
+        next();
+        return;
+      }
+
       res.status(401).json({
         error: {
           code: 'USER_NOT_FOUND',

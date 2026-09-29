@@ -192,9 +192,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                         return (
                           <button
                             key={u.email}
-                            onClick={() => {
-                              switchRole(u.email, u.password);
+                            type="button"
+                            onClick={async () => {
                               setShowRoleMenu(false);
+                              try {
+                                await switchRole(u.email, u.password);
+                              } catch (err) {
+                                console.error('Role switch failed:', err);
+                              }
                             }}
                             className={`w-full text-left p-2 rounded-lg flex flex-col transition border ${
                               isActive
