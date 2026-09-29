@@ -32,6 +32,10 @@ interface TransfersViewProps {
   onRefresh: () => void;
   isLoading: boolean;
   initialSubTab?: 'transfers' | 'coldchain';
+  initialOpenPropose?: boolean;
+  initialRecipientFacilityId?: string;
+  initialSkuId?: string;
+  onClearProposeTarget?: () => void;
 }
 
 export const TransfersView: React.FC<TransfersViewProps> = ({
@@ -41,6 +45,10 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
   onRefresh,
   isLoading,
   initialSubTab = 'transfers',
+  initialOpenPropose = false,
+  initialRecipientFacilityId,
+  initialSkuId,
+  onClearProposeTarget,
 }) => {
   const { user, token } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<'transfers' | 'coldchain'>(initialSubTab);
@@ -60,10 +68,25 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
   } | null>(null);
 
   // Transfer Proposal modal state
-  const [showModal, setShowModal] = useState(false);
-  const [recipientFacilityId, setRecipientFacilityId] = useState(facilities[0]?.id || '');
-  const [skuId, setSkuId] = useState(skus[0]?.id || '');
+  const defaultRecipient =
+    initialRecipientFacilityId ||
+    (user?.role === 'phc_nurse' && user?.facilityId ? user.facilityId : null) ||
+    facilities[0]?.id ||
+    '';
+  const defaultSku = initialSkuId || skus[0]?.id || '';
+
+  const [showModal, setShowModal] = useState(Boolean(initialOpenPropose));
+  const [recipientFacilityId, setRecipientFacilityId] = useState(defaultRecipient);
+  const [skuId, setSkuId] = useState(defaultSku);
   const [qty, setQty] = useState(25);
+
+  React.useEffect(() => {
+    if (initialOpenPropose) {
+      setShowModal(true);
+      if (initialRecipientFacilityId) setRecipientFacilityId(initialRecipientFacilityId);
+      if (initialSkuId) setSkuId(initialSkuId);
+    }
+  }, [initialOpenPropose, initialRecipientFacilityId, initialSkuId]);
 
   const canApprove =
     user?.role === 'district_officer' || user?.role === 'national_war_room';
@@ -153,7 +176,7 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
 
       setSuccessMsg(
         action === 'approve'
-          ? `Transfer approved! Atomic PostgreSQL transaction locked donor lots, verified 7-day cover, and decremented inventory.`
+          ? `Transfer approved! Atomic transaction locked donor lots, verified 7-day cover, and decremented inventory.`
           : 'Transfer order marked as rejected.'
       );
       onRefresh();
@@ -384,6 +407,33 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
                           </button>
                         </div>
                       )}
+
+                      {isProposed && !canApprove && (
+                        <div className="flex items-center gap-1.5 text-xs text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                          <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <span>Awaiting District Officer Approval</span>
+                        </div>
+                      )}
+
+                      {isApproved && (
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5 text-xs text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>Approved &bull; En Route (~{order.etaHours}h)</span>
+                          </div>
+                          {user?.role === 'phc_nurse' && (order.toFacilityId === user.facilityId || (order as any).recipientFacilityId === user.facilityId) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSuccessMsg(`Inward shipment of ${order.skuName} (${order.qty} ${order.unit}) verified & added to ward stock.`);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition shadow-sm"
+                            >
+                              Confirm Ward Delivery
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -421,7 +471,11 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
                 Propose Inter-Facility Transfer
               </h3>
               <button
-                onClick={() => setShowModal(false)}
+                type="button"
+                onClick={() => {
+                  setShowModal(false);
+                  onClearProposeTarget?.();
+                }}
                 className="text-slate-400 hover:text-white text-sm"
               >
                 ✕
@@ -482,7 +536,10 @@ export const TransfersView: React.FC<TransfersViewProps> = ({
               <div className="pt-2 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false);
+                    onClearProposeTarget?.();
+                  }}
                   className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300"
                 >
                   Cancel

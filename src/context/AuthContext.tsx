@@ -65,7 +65,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('arogyanet_token'));
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [dbEngine, setDbEngine] = useState<string>('PostgreSQL');
+  const [dbEngine, setDbEngine] = useState<string>('Cloud Database');
   const [lang, setLangState] = useState<Language>(
     (localStorage.getItem('arogyanet_lang') as Language) || 'en'
   );

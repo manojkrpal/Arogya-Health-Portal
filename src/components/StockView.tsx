@@ -303,7 +303,7 @@ export const StockView: React.FC<StockViewProps> = ({
 
                 {savedSkuId === item.skuId && (
                   <div className="mt-1.5 text-[10px] text-emerald-400 flex items-center justify-end gap-1">
-                    <Check className="w-3 h-3" /> Updated in PostgreSQL
+                    <Check className="w-3 h-3" /> Saved to Database
                   </div>
                 )}
               </div>

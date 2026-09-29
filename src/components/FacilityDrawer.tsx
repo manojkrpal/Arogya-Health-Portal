@@ -525,7 +525,7 @@ export const FacilityDrawer: React.FC<FacilityDrawerProps> = ({
 
             {isLoading ? (
               <div className="p-8 text-center text-xs text-slate-500">
-                Querying PostgreSQL stock records...
+                Querying stock records...
               </div>
             ) : (
               <div className="space-y-2">

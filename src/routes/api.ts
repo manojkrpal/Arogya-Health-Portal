@@ -683,7 +683,7 @@ apiRouter.get('/facilities/:id', async (req: Request, res: Response) => {
 
 /**
  * POST /v1/facilities
- * Create a new health facility in PostgreSQL and sync to Firestore
+ * Create a new health facility in database and sync to Firestore
  */
 apiRouter.post('/facilities', requireRole('district_officer', 'national_war_room'), async (req: Request, res: Response) => {
   const user = (req as any).user as TokenPayload;

@@ -443,7 +443,7 @@ export const MapView: React.FC<MapViewProps> = ({
                   Register Health Facility (Database Direct)
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Creates facility record in PostgreSQL and synchronizes with Firestore.
+                  Creates facility record in database and synchronizes with Firestore.
                 </p>
               </div>
               <button

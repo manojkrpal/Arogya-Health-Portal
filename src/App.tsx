@@ -125,7 +125,13 @@ function ArogyaNetApp() {
     }
   };
 
+  const [proposeTransferTarget, setProposeTransferTarget] = useState<{
+    facilityId: string;
+    skuId: string;
+  } | null>(null);
+
   const handleProposeTransferFromAlert = (facilityId: string, skuId: string) => {
+    setProposeTransferTarget({ facilityId, skuId });
     setActiveTab('transfers');
   };
 
@@ -152,7 +158,11 @@ function ArogyaNetApp() {
   const displayedTransfers =
     user?.role === 'phc_nurse' && user?.facilityId
       ? transfers.filter(
-          (t) => t.senderFacilityId === user.facilityId || t.recipientFacilityId === user.facilityId
+          (t) =>
+            t.fromFacilityId === user.facilityId ||
+            t.toFacilityId === user.facilityId ||
+            (t as any).senderFacilityId === user.facilityId ||
+            (t as any).recipientFacilityId === user.facilityId
         )
       : transfers;
 
@@ -236,6 +246,10 @@ function ArogyaNetApp() {
             onRefresh={refreshData}
             isLoading={isLoading}
             initialSubTab="transfers"
+            initialOpenPropose={Boolean(proposeTransferTarget)}
+            initialRecipientFacilityId={proposeTransferTarget?.facilityId}
+            initialSkuId={proposeTransferTarget?.skuId}
+            onClearProposeTarget={() => setProposeTransferTarget(null)}
           />
         )}
 

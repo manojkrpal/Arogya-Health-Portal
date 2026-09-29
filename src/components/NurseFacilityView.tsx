@@ -938,11 +938,11 @@ export const NurseFacilityView: React.FC<NurseFacilityViewProps> = ({
                 Essential Medicines Stock & Quick Dispense
               </h2>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
-                PostgreSQL & Cloud Synced
+                Cloud Synced
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Adjust stock levels with one tap. Changes save to PostgreSQL and synchronize in real-time.
+              Adjust stock levels with one tap. Changes save securely and synchronize in real-time.
             </p>
           </div>
 

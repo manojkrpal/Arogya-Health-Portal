@@ -220,7 +220,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       })}
                     </div>
                     <div className="mt-2 pt-2 border-t border-slate-700/60 text-[10px] text-slate-400 px-1">
-                      Strict RBAC & Postgres RLS enforced per role.
+                      Strict RBAC & row-level security enforced per role.
                     </div>
                   </div>
                 </>
